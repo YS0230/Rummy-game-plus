@@ -1,0 +1,131 @@
+import React, { useState } from 'react';
+import { useStore } from '../store.js';
+import { connectAs, req } from '../socket.js';
+
+export default function Lobby() {
+  const { lobby, name, setName, showToast, connected } = useStore();
+  const [draft, setDraft] = useState(name);
+  const [roomName, setRoomName] = useState('');
+  const [maxPlayers, setMaxPlayers] = useState(4);
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [code, setCode] = useState('');
+
+  const ensureName = () => {
+    const n = draft.trim();
+    if (!n) {
+      showToast('請先輸入暱稱', 'warn');
+      return null;
+    }
+    setName(n);
+    connectAs(n);
+    return n;
+  };
+
+  const create = async () => {
+    const n = ensureName();
+    if (!n) return;
+    const res = await req('lobby:create', {
+      playerName: n,
+      roomName: roomName.trim(),
+      maxPlayers,
+      isPrivate,
+    });
+    if (!res.ok) showToast(res.error, 'warn');
+  };
+
+  const join = async (roomId) => {
+    const n = ensureName();
+    if (!n) return;
+    const res = await req('lobby:join', { playerName: n, roomId });
+    if (!res.ok) showToast(res.error, 'warn');
+  };
+
+  const joinByCode = async () => {
+    const n = ensureName();
+    if (!n) return;
+    const res = await req('lobby:joinByCode', { playerName: n, code: code.trim() });
+    if (!res.ok) showToast(res.error, 'warn');
+  };
+
+  return (
+    <div className="lobby">
+      <h1>🀄 拉密 Rummikub 線上對戰</h1>
+
+      <div className="card">
+        <label>暱稱</label>
+        <input
+          value={draft}
+          maxLength={16}
+          placeholder="輸入你的暱稱"
+          onChange={(e) => setDraft(e.target.value)}
+          onBlur={ensureName}
+        />
+      </div>
+
+      <div className="lobby-grid">
+        <div className="card">
+          <h2>建立房間</h2>
+          <input
+            value={roomName}
+            maxLength={30}
+            placeholder="房間名稱(選填)"
+            onChange={(e) => setRoomName(e.target.value)}
+          />
+          <div className="row">
+            <label>人數上限</label>
+            <select value={maxPlayers} onChange={(e) => setMaxPlayers(Number(e.target.value))}>
+              <option value={2}>2</option>
+              <option value={3}>3</option>
+              <option value={4}>4</option>
+            </select>
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={isPrivate}
+                onChange={(e) => setIsPrivate(e.target.checked)}
+              />
+              私人房(僅限代碼加入)
+            </label>
+          </div>
+          <button className="primary" onClick={create}>
+            建立房間
+          </button>
+
+          <h2 style={{ marginTop: 20 }}>用代碼加入</h2>
+          <div className="row">
+            <input
+              value={code}
+              maxLength={6}
+              placeholder="房間代碼"
+              style={{ textTransform: 'uppercase' }}
+              onChange={(e) => setCode(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && joinByCode()}
+            />
+            <button onClick={joinByCode}>加入</button>
+          </div>
+        </div>
+
+        <div className="card">
+          <h2>公開房間 {connected ? '' : '(輸入暱稱後連線)'}</h2>
+          {lobby.length === 0 && <p className="muted">目前沒有公開房間,建立一個吧!</p>}
+          <ul className="room-list">
+            {lobby.map((r) => (
+              <li key={r.id}>
+                <span className="room-name">{r.name}</span>
+                <span className="muted">
+                  {r.playerCount}/{r.maxPlayers} · {r.status === 'waiting' ? '等待中' : '遊戲中'}
+                </span>
+                <button
+                  disabled={r.status !== 'waiting' || r.playerCount >= r.maxPlayers}
+                  onClick={() => join(r.id)}
+                >
+                  加入
+                </button>
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    </div>
+  );
+}

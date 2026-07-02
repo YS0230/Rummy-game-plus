@@ -1,0 +1,22 @@
+# 依賴
+node_modules/
+
+# 前端 build 產物
+client/dist/
+
+# 記錄與暫存
+*.log
+npm-debug.log*
+.cache/
+.vite/
+
+# 環境變數
+.env
+.env.local
+.env.*.local
+
+# 編輯器 / 系統
+.vscode/
+.idea/
+.DS_Store
+Thumbs.db
