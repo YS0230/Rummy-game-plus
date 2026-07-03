@@ -5,7 +5,8 @@ import { req } from '../socket.js';
 export default function Chat() {
   const { chat, playerId } = useStore();
   const [text, setText] = useState('');
-  const [open, setOpen] = useState(true);
+  // 手機(窄螢幕)預設收合,避免聊天室蓋住牌桌
+  const [open, setOpen] = useState(() => window.matchMedia('(min-width: 901px)').matches);
   const [seenCount, setSeenCount] = useState(chat.length);
   const listRef = useRef(null);
 
