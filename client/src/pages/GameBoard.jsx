@@ -9,6 +9,7 @@ import {
 } from '@dnd-kit/core';
 import { useStore, tileLabel } from '../store.js';
 import { req } from '../socket.js';
+import { isValidRun, sortRunForDisplay } from '../../../shared/validator.js';
 import Tile from '../components/Tile.jsx';
 import Rack from '../components/Rack.jsx';
 import TableArea from '../components/TableArea.jsx';
@@ -57,8 +58,25 @@ export default function GameBoard() {
 
     if (!myTurn) return;
     const layout = currentLayout();
+    // 從來源牌組移除:若拉走的是中間的牌,以它為界拆成左右兩組
     const removeFromSets = () => {
-      for (const s of layout) s.tileIds = s.tileIds.filter((id) => id !== tileId);
+      const src = game.table.find((s) => s.tiles.some((t) => t.id === tileId));
+      const ls = src && layout.find((s) => s.id === src.id);
+      if (!ls) return;
+      // 依畫面顯示順序切割(順子顯示時已重排)
+      const display = isValidRun(src.tiles) ? sortRunForDisplay(src.tiles) : src.tiles;
+      const idx = display.findIndex((t) => t.id === tileId);
+      const left = display.slice(0, idx).map((t) => t.id);
+      const right = display.slice(idx + 1).map((t) => t.id);
+      if (left.length && right.length) {
+        ls.tileIds = left;
+        layout.splice(layout.indexOf(ls) + 1, 0, {
+          id: `n-${Date.now().toString(36)}r`,
+          tileIds: right,
+        });
+      } else {
+        ls.tileIds = left.length ? left : right;
+      }
     };
 
     if (target.type === 'set' || target.type === 'newset') {

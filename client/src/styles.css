@@ -348,6 +348,7 @@ select {
   border-radius: 14px;
   padding: 14px;
   overflow-y: auto;
+  scrollbar-gutter: stable; /* 捲軸出現/消失不改變內容寬度,避免整片重排 */
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
@@ -512,7 +513,7 @@ select {
   display: flex;
   flex-wrap: wrap;
   gap: 4px;
-  min-height: 70px;
+  min-height: 132px; /* 固定保留兩排高度,手牌 1↔2 排變化時桌面不跳動 */
   background: #7a4f2b;
   border-radius: 12px;
   padding: 8px;
