@@ -100,9 +100,14 @@ export function registerHandlers(io, rooms) {
     const joinRoom = (room, payload, ack) => {
       if (rooms.roomOf(playerId)) throw new Error('已在其他房間');
       if (payload?.playerName) socket.data.name = String(payload.playerName).slice(0, 16);
-      rooms.addPlayer(room, { playerId, name: socket.data.name, socketId: socket.id });
+      const player = rooms.addPlayer(room, {
+        playerId,
+        name: socket.data.name,
+        socketId: socket.id,
+      });
+      socket.data.name = player.name; // 重名補號後,聊天等處用同一名字
       socket.join(room.id);
-      systemChat(room, `${socket.data.name} 加入房間`);
+      systemChat(room, `${player.name} 加入房間`);
       sendFullState(socket, room, playerId);
       broadcastRoom(room);
       ack?.({ ok: true, roomId: room.id });

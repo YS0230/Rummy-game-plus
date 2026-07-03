@@ -1,11 +1,12 @@
 import React, { useState } from 'react';
 import { useStore } from '../store.js';
 import { connectAs, req } from '../socket.js';
+import { randomNickname, randomRoomName } from '../names.js';
 
 export default function Lobby() {
   const { lobby, name, setName, showToast, connected } = useStore();
-  const [draft, setDraft] = useState(name);
-  const [roomName, setRoomName] = useState('');
+  const [draft, setDraft] = useState(name || randomNickname());
+  const [roomName, setRoomName] = useState(randomRoomName());
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [isPrivate, setIsPrivate] = useState(false);
   const [code, setCode] = useState('');
@@ -53,24 +54,38 @@ export default function Lobby() {
 
       <div className="card">
         <label>暱稱</label>
-        <input
-          value={draft}
-          maxLength={16}
-          placeholder="輸入你的暱稱"
-          onChange={(e) => setDraft(e.target.value)}
-          onBlur={ensureName}
-        />
+        <div className="row" style={{ margin: 0 }}>
+          <input
+            value={draft}
+            maxLength={16}
+            placeholder="輸入你的暱稱"
+            onChange={(e) => setDraft(e.target.value)}
+            onBlur={ensureName}
+          />
+          <button className="small" title="隨機暱稱" onClick={() => setDraft(randomNickname())}>
+            🎲 隨機
+          </button>
+        </div>
       </div>
 
       <div className="lobby-grid">
         <div className="card">
           <h2>建立房間</h2>
-          <input
-            value={roomName}
-            maxLength={30}
-            placeholder="房間名稱(選填)"
-            onChange={(e) => setRoomName(e.target.value)}
-          />
+          <div className="row" style={{ margin: 0 }}>
+            <input
+              value={roomName}
+              maxLength={30}
+              placeholder="房間名稱(選填)"
+              onChange={(e) => setRoomName(e.target.value)}
+            />
+            <button
+              className="small"
+              title="隨機房名"
+              onClick={() => setRoomName(randomRoomName())}
+            >
+              🎲 隨機
+            </button>
+          </div>
           <div className="row">
             <label>人數上限</label>
             <select value={maxPlayers} onChange={(e) => setMaxPlayers(Number(e.target.value))}>

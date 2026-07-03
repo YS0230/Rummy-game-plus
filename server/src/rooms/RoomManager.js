@@ -35,16 +35,28 @@ export class RoomManager {
     if (room.status !== 'waiting') throw new Error('遊戲進行中,無法加入');
     if (room.players.length >= room.maxPlayers) throw new Error('房間已滿');
     if (room.players.some((p) => p.playerId === playerId)) throw new Error('已在房間內');
-    room.players.push({
+    const player = {
       playerId,
-      name: (name || '玩家').slice(0, 16),
+      name: this.uniqueName(room, (name || '玩家').slice(0, 16)),
       socketId,
       connected: true,
       ready: playerId === room.hostId,
-    });
+    };
+    room.players.push(player);
     this.playerRoom.set(playerId, room.id);
     this.cancelDestroy(room);
-    return room;
+    return player;
+  }
+
+  /** 同房間重名時自動補上 #隨機數字(例:憤怒的馬鈴薯#812) */
+  uniqueName(room, base) {
+    const taken = new Set(room.players.map((p) => p.name));
+    if (!taken.has(base)) return base;
+    for (let i = 0; i < 50; i++) {
+      const candidate = `${base}#${Math.floor(100 + Math.random() * 900)}`;
+      if (!taken.has(candidate)) return candidate;
+    }
+    return `${base}#${Date.now() % 10000}`;
   }
 
   findByCode(code) {
