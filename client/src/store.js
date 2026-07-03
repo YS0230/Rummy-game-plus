@@ -1,26 +1,9 @@
 import { create } from 'zustand';
 import { socket, myPlayerId } from './socket.js';
+import { sounds } from './sounds.js';
 
 const COLOR_NAMES = { red: '紅', blue: '藍', orange: '橘', black: '黑' };
 export const tileLabel = (t) => (t.isJoker ? '鬼牌 ☺' : `${COLOR_NAMES[t.color]}色 ${t.num}`);
-
-function beep() {
-  try {
-    const ctx = new (window.AudioContext || window.webkitAudioContext)();
-    const osc = ctx.createOscillator();
-    const gain = ctx.createGain();
-    osc.connect(gain);
-    gain.connect(ctx.destination);
-    osc.frequency.value = 880;
-    gain.gain.setValueAtTime(0.08, ctx.currentTime);
-    gain.gain.exponentialRampToValueAtTime(0.0001, ctx.currentTime + 0.5);
-    osc.start();
-    osc.stop(ctx.currentTime + 0.5);
-    osc.onended = () => ctx.close();
-  } catch {
-    /* 瀏覽器未允許音效時忽略 */
-  }
-}
 
 export const useStore = create((set, get) => ({
   playerId: myPlayerId,
@@ -119,13 +102,14 @@ export function bindSocket() {
       prev?.current !== game.current
     ) {
       s({ turnFlash: true });
-      beep();
+      sounds.yourTurn();
       setTimeout(() => s({ turnFlash: false }), 2500);
     }
   });
   socket.on('game:hand', (hand) => g().mergeHand(hand));
 
   socket.on('game:drew', (tile) => {
+    sounds.draw();
     s({ drewTile: tile, drewOverlay: tile });
     setTimeout(() => {
       if (g().drewOverlay?.id === tile.id) s({ drewOverlay: null });
@@ -137,9 +121,15 @@ export function bindSocket() {
 
   socket.on('game:turnResult', (r) => {
     if (r.message) g().showToast(r.message, r.ok ? 'info' : 'warn');
+    if (r.ok && !r.drew) sounds.play(); // 有人出牌成功(含自己),全房都聽得到
+    else if (!r.ok && r.playerId === g().playerId) sounds.error(); // 自己被超時跳過
   });
 
-  socket.on('game:over', ({ results }) => s({ results }));
+  socket.on('game:over', ({ winnerId, results }) => {
+    s({ results });
+    if (winnerId === g().playerId) sounds.win();
+    else sounds.lose();
+  });
 
   socket.on('chat:message', (msg) => s({ chat: [...g().chat, msg].slice(-100) }));
 }

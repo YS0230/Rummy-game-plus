@@ -10,7 +10,8 @@ import {
 } from '@dnd-kit/core';
 import { useStore, tileLabel } from '../store.js';
 import { req } from '../socket.js';
-import { isValidRun, sortRunForDisplay } from '../../../shared/validator.js';
+import { sounds } from '../sounds.js';
+import { isValidRun, isValidSet, sortRunForDisplay } from '../../../shared/validator.js';
 import Tile from '../components/Tile.jsx';
 import Rack from '../components/Rack.jsx';
 import TableArea from '../components/TableArea.jsx';
@@ -50,9 +51,14 @@ export default function GameBoard() {
   const currentLayout = () =>
     game.table.map((s) => ({ id: s.id, tileIds: s.tiles.map((t) => t.id) }));
 
-  const sendLayout = async (sets) => {
+  const sendLayout = async (sets, sound = sounds.place) => {
     const res = await req('game:layout', { sets: sets.filter((s) => s.tileIds.length > 0) });
-    if (!res.ok && res.error) showToast(res.error, 'warn');
+    if (!res.ok && res.error) {
+      showToast(res.error, 'warn');
+      sounds.error();
+      return;
+    }
+    sound();
   };
 
   // 雙擊手牌:自動排到「建立新牌組」區
@@ -123,12 +129,21 @@ export default function GameBoard() {
         if (from === target.setId) return; // 同組不動
         removeFromSets();
       }
+      let sound = sounds.place;
       if (target.type === 'set') {
-        layout.find((s) => s.id === target.setId)?.tileIds.push(tileId);
+        const ls = layout.find((s) => s.id === target.setId);
+        ls?.tileIds.push(tileId);
+        // 這一放若讓牌組變成有效組合,給上行雙音回饋
+        if (ls) {
+          const tileById = new Map(hand.map((t) => [t.id, t]));
+          for (const s of game.table) for (const t of s.tiles) tileById.set(t.id, t);
+          const tiles = ls.tileIds.map((id) => tileById.get(id)).filter(Boolean);
+          if (tiles.length === ls.tileIds.length && isValidSet(tiles)) sound = sounds.validSet;
+        }
       } else {
         layout.push({ id: `n-${Date.now().toString(36)}`, tileIds: [tileId] });
       }
-      sendLayout(layout);
+      sendLayout(layout, sound);
       return;
     }
 

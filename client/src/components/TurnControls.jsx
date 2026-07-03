@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import { useStore } from '../store.js';
 import { req } from '../socket.js';
+import { sounds } from '../sounds.js';
 
 export default function TurnControls({ myTurn }) {
   const { game, showToast, flagInvalidSets } = useStore();
@@ -20,6 +21,7 @@ export default function TurnControls({ myTurn }) {
     const res = await req(event, payload);
     if (!res.ok && res.error) {
       showToast(res.error, 'warn');
+      sounds.error();
       if (res.invalidSetIds?.length) flagInvalidSets(res.invalidSetIds);
     }
   };
