@@ -363,13 +363,17 @@ select {
   background: var(--felt);
   border-radius: 14px;
   padding: 14px;
-  overflow-y: auto;
+  overflow-y: auto; /* 縮到 MIN_TABLE_SCALE 仍放不下時的後備捲動 */
+  overflow-x: hidden;
   scrollbar-gutter: stable; /* 捲軸出現/消失不改變內容寬度,避免整片重排 */
+  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.25);
+}
+/* 內層由 TableArea 依內容高度動態設 zoom,見 useFitAndFlip */
+.table-scale {
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
   align-content: flex-start;
-  box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.25);
 }
 .table-set {
   display: flex;
@@ -875,6 +879,8 @@ select {
   }
   .table-area {
     padding: 10px;
+  }
+  .table-scale {
     gap: 8px;
   }
   .new-set-zone {
