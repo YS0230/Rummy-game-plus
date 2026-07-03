@@ -139,10 +139,18 @@ function useFitAndFlip(table) {
 export default function TableArea({ myTurn, placedSet, onSetDoubleClick }) {
   const { game, invalidSetIds } = useStore();
   const newSet = useDroppable({ id: 'newset', data: { type: 'newset' }, disabled: !myTurn });
+  // 整個桌面也是放置目標:拖到空白處=建立新牌組(碰撞偵測讓它只當後備,見 GameBoard)
+  const tableDrop = useDroppable({ id: 'table', data: { type: 'table' }, disabled: !myTurn });
   const { areaRef, innerRef } = useFitAndFlip(game.table);
 
   return (
-    <div className="table-area" ref={areaRef}>
+    <div
+      className={`table-area ${tableDrop.isOver ? 'table-over' : ''}`}
+      ref={(el) => {
+        areaRef.current = el;
+        tableDrop.setNodeRef(el);
+      }}
+    >
       <div className="table-scale" ref={innerRef}>
         {game.table.map((s) => (
           <TableSet
@@ -159,7 +167,7 @@ export default function TableArea({ myTurn, placedSet, onSetDoubleClick }) {
           data-flip-id="__newset"
           className={`new-set-zone ${newSet.isOver ? 'set-over' : ''} ${myTurn ? '' : 'disabled'}`}
         >
-          + 拖曳到這裡建立新牌組
+          + 拖到桌面空白處建立新牌組
         </div>
       </div>
     </div>

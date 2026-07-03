@@ -4,6 +4,7 @@ import {
   DragOverlay,
   PointerSensor,
   TouchSensor,
+  rectIntersection,
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
@@ -26,6 +27,20 @@ export default function GameBoard() {
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
     useSensor(TouchSensor, { activationConstraint: { delay: 120, tolerance: 8 } })
   );
+
+  // 桌面(table)只當後備目標:先比對牌組/牌架等,都沒碰到才算「拖到桌面空白處」
+  const collisionDetection = (args) => {
+    const isTable = (c) => c.data.current?.type === 'table';
+    const hits = rectIntersection({
+      ...args,
+      droppableContainers: args.droppableContainers.filter((c) => !isTable(c)),
+    });
+    if (hits.length) return hits;
+    return rectIntersection({
+      ...args,
+      droppableContainers: args.droppableContainers.filter(isTable),
+    });
+  };
 
   if (!game) return <div className="loading">載入遊戲中…</div>;
 
@@ -102,7 +117,8 @@ export default function GameBoard() {
       }
     };
 
-    if (target.type === 'set' || target.type === 'newset') {
+    // 拖到桌面空白處(table)與拖到「建立新牌組」區(newset)等價
+    if (target.type === 'set' || target.type === 'newset' || target.type === 'table') {
       if (from !== 'hand') {
         if (from === target.setId) return; // 同組不動
         removeFromSets();
@@ -130,6 +146,7 @@ export default function GameBoard() {
   return (
     <DndContext
       sensors={sensors}
+      collisionDetection={collisionDetection}
       onDragStart={onDragStart}
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveTile(null)}
