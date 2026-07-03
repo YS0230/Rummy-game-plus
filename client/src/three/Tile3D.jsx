@@ -7,15 +7,20 @@ import { useFrame } from '@react-three/fiber';
 import { RoundedBoxGeometry } from 'three-stdlib';
 import { easing } from 'maath';
 import { faceMaterial, tileBodyMaterial } from './tileTextures.js';
-import { TILE_W, TILE_H, TILE_T, DECK_POS, TABLE_TILE_ROT } from './layout.js';
+import { TILE_W, TILE_H, TILE_T, DECK_POS, TABLE_TILE_ROT, RACK_LEAN } from './layout.js';
 
 const bodyGeom = new RoundedBoxGeometry(TILE_W, TILE_H, TILE_T, 3, 0.05);
 const faceGeom = new THREE.PlaneGeometry(TILE_W * 0.94, TILE_H * 0.96);
 
 const SMOOTH = 0.16;
 const DRAG_SMOOTH = 0.05;
+// 懸停上浮:沿牌面法線浮出(牌距壓縮重疊時可看清整張)
+const HOVER_LIFT = 0.34;
+const HOVER_LIFT_Y = HOVER_LIFT * Math.sin(RACK_LEAN);
+const HOVER_LIFT_Z = HOVER_LIFT * Math.cos(RACK_LEAN);
+const liftPos = [0, 0, 0]; // useFrame 共用暫存,避免每幀配置
 
-export default function Tile3D({ tile, target, dragging, dragPos, onTileDown, drawn, placed, flash }) {
+export default function Tile3D({ tile, target, dragging, dragPos, onTileDown, drawn, placed, flash, hovered }) {
   const ref = useRef();
   const glowMat = useRef();
   const flashStart = useRef(0);
@@ -31,7 +36,14 @@ export default function Tile3D({ tile, target, dragging, dragPos, onTileDown, dr
       easing.damp3(g.position, dragPos, DRAG_SMOOTH, dt);
       easing.dampE(g.rotation, TABLE_TILE_ROT, 0.1, dt);
     } else {
-      easing.damp3(g.position, target.pos, SMOOTH, dt);
+      if (hovered && target.zone === 'rack') {
+        liftPos[0] = target.pos[0];
+        liftPos[1] = target.pos[1] + HOVER_LIFT_Y;
+        liftPos[2] = target.pos[2] + HOVER_LIFT_Z;
+        easing.damp3(g.position, liftPos, 0.08, dt);
+      } else {
+        easing.damp3(g.position, target.pos, SMOOTH, dt);
+      }
       easing.dampE(g.rotation, target.rot, SMOOTH, dt);
       if (flash) {
         // 驗證失敗:左右抖動,約 0.9 秒衰減

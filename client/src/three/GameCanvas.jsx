@@ -76,7 +76,7 @@ function Scene({ myTurn }) {
   const layoutRef = useRef(layout);
   layoutRef.current = layout;
 
-  const { onTileDown, drag, hover, dragPos } = useTileDrag(layoutRef);
+  const { onTileDown, drag, hover, hoverTile, dragPos } = useTileDrag(layoutRef);
 
   // 開發模式:暴露投影所需物件給自動化測試(座標換算用)
   const camera = useThree((s) => s.camera);
@@ -145,6 +145,7 @@ function Scene({ myTurn }) {
             target={target}
             dragging={drag?.tileId === t.id}
             dragPos={dragPos}
+            hovered={!drag && hoverTile === t.id}
             onTileDown={onTileDown}
             drawn={drewTile?.id === t.id}
             placed={placedSet.has(t.id) && layout.tiles.get(t.id)?.zone === 'table'}

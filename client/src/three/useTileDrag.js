@@ -5,9 +5,21 @@ import * as THREE from 'three';
 import { useThree } from '@react-three/fiber';
 import { useStore } from '../store.js';
 import { applyDrop } from '../dragActions.js';
-import { hitTarget } from './layout.js';
+import {
+  hitTarget,
+  rackHoverIndex,
+  RACK_LEAN,
+  RACK_SHELF_Y,
+  RACK_FOOT_Z,
+} from './layout.js';
 
 export const DRAG_Y = 0.85; // 拖曳中牌浮起高度
+
+// 牌架斜面(過所有牌中心的平面),懸停判定用
+const RACK_PLANE = new THREE.Plane(
+  new THREE.Vector3(0, Math.sin(RACK_LEAN), Math.cos(RACK_LEAN)),
+  -(Math.sin(RACK_LEAN) * RACK_SHELF_Y + Math.cos(RACK_LEAN) * RACK_FOOT_Z)
+);
 
 export function useTileDrag(layoutRef) {
   const camera = useThree((s) => s.camera);
@@ -15,6 +27,7 @@ export function useTileDrag(layoutRef) {
   const controls = useThree((s) => s.controls);
   const [drag, setDrag] = useState(null); // { tileId, from }
   const [hover, setHover] = useState(null); // 拖曳中的目標(高亮用)
+  const [hoverTile, setHoverTile] = useState(null); // 非拖曳時游標指到的手牌 id(上浮用)
   const S = useRef(null);
   if (!S.current) {
     S.current = {
@@ -65,12 +78,23 @@ export function useTileDrag(layoutRef) {
     };
 
     const move = (ev) => {
-      if (!s.down && !s.active) return;
+      if (!s.down && !s.active) {
+        // 非拖曳:游標指到的手牌上浮(重疊時可看清整張)
+        if (ev.pointerType === 'mouse' && project(ev, RACK_PLANE, s.ground)) {
+          const { hand } = useStore.getState();
+          const idx = rackHoverIndex(s.ground, layoutRef.current, hand.length);
+          setHoverTile(idx >= 0 ? hand[idx]?.id ?? null : null);
+        } else {
+          setHoverTile(null);
+        }
+        return;
+      }
       if (!s.active) {
         if (Math.hypot(ev.clientX - s.down.x, ev.clientY - s.down.y) < 4) return;
         s.active = { tileId: s.down.tileId, from: s.down.from };
         s.down = null;
         setDrag(s.active);
+        setHoverTile(null);
       }
       project(ev, s.dragPlane, s.pos);
       if (project(ev, s.groundPlane, s.ground)) {
@@ -107,5 +131,5 @@ export function useTileDrag(layoutRef) {
     };
   }, [gl, camera, controls, layoutRef]);
 
-  return { onTileDown, drag, hover, dragPos: S.current.pos };
+  return { onTileDown, drag, hover, hoverTile, dragPos: S.current.pos };
 }

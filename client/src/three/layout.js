@@ -28,10 +28,21 @@ export const RACK_ROW_PITCH = 1.18; // 排距(沿斜面)
 export const RACK_FOOT_Z = 4.94; // 牌底邊落點 z
 export const RACK_SHELF_Y = 0.12; // 架面高度
 
-/** 牌架尺寸(cols=每排格數;cx=架中心 x,桌機左移避開聊天室) */
-export function rackParams(cols = RACK_COLS, cx = -0.8) {
-  const w = (cols - 1) * RACK_SLOT_X + TILE_W + 0.8;
-  return { cols, cx, w, x0: cx - w / 2 + 0.4 + TILE_W / 2 };
+/**
+ * 牌架尺寸(cols=基本每排格數;cx=架中心 x,桌機左移避開聊天室)。
+ * 固定最多 2 排:手牌超過 2 排容量時先加寬欄數(最多 +3 欄),
+ * 再超過就壓縮牌距讓牌微重疊,牌架高度永遠不變(避免長高擋住桌面)。
+ */
+export function rackParams(baseCols = RACK_COLS, cx = -0.8, handCount = 0) {
+  const maxCols = baseCols + 3;
+  const cols = Math.max(baseCols, Math.ceil(handCount / 2));
+  if (cols <= maxCols) {
+    const w = (cols - 1) * RACK_SLOT_X + TILE_W + 0.8;
+    return { cols, cx, w, slotX: RACK_SLOT_X, x0: cx - w / 2 + 0.4 + TILE_W / 2 };
+  }
+  const w = (maxCols - 1) * RACK_SLOT_X + TILE_W + 0.8;
+  const slotX = ((maxCols - 1) * RACK_SLOT_X) / (cols - 1);
+  return { cols, cx, w, slotX, x0: cx - w / 2 + 0.4 + TILE_W / 2 };
 }
 
 // 牌堆(抽牌飛入起點)
@@ -45,7 +56,7 @@ export function rackSlotTransform(index, rack = rackParams()) {
   const row = Math.floor(index / rack.cols);
   const col = index % rack.cols;
   const along = TILE_H / 2 + row * RACK_ROW_PITCH; // 沿斜面距底邊的距離
-  const x = rack.x0 + col * RACK_SLOT_X;
+  const x = rack.x0 + col * (rack.slotX ?? RACK_SLOT_X);
   const y = RACK_SHELF_Y + along * Math.cos(RACK_LEAN);
   const z = RACK_FOOT_Z - along * Math.sin(RACK_LEAN);
   return { pos: [x, y, z], rot: RACK_TILE_ROT, zone: 'rack' };
@@ -57,7 +68,7 @@ export function rackSlotTransform(index, rack = rackParams()) {
  * sets 內含 NEWSET_ID 佔位(建新組提示板/放下判定用)。
  */
 export function computeLayout(table, hand, opts = {}) {
-  const rack = rackParams(opts.rackCols, opts.rackCx);
+  const rack = rackParams(opts.rackCols, opts.rackCx, (hand ?? []).length);
   const usableW = opts.tableUsableW ?? TABLE_USABLE_W;
   const tiles = new Map();
   const sets = new Map();
@@ -118,6 +129,27 @@ export function computeLayout(table, hand, opts = {}) {
   return { tiles, sets, rack };
 }
 
+/**
+ * 游標懸停的手牌 index(牌重疊時上浮用)。
+ * p 需為游標射線與「牌架斜面(過牌中心)」的交點;不在任何牌上回傳 -1。
+ */
+export function rackHoverIndex(p, layout, handLength) {
+  const rack = layout?.rack ?? rackParams();
+  const cosL = Math.cos(RACK_LEAN);
+  const sinL = Math.sin(RACK_LEAN);
+  // 沿斜面距底邊的距離 → 排
+  const along = (p.y - RACK_SHELF_Y) * cosL - (p.z - RACK_FOOT_Z) * sinL;
+  const row = Math.round((along - TILE_H / 2) / RACK_ROW_PITCH);
+  if (row < 0 || row > 1) return -1;
+  if (Math.abs(along - (TILE_H / 2 + row * RACK_ROW_PITCH)) > TILE_H / 2) return -1;
+  const slotX = rack.slotX ?? RACK_SLOT_X;
+  const col = Math.round((p.x - rack.x0) / slotX);
+  if (col < 0 || col >= rack.cols) return -1;
+  if (Math.abs(p.x - (rack.x0 + col * slotX)) > Math.min(slotX, TILE_W) / 2 + 0.03) return -1;
+  const idx = row * rack.cols + col;
+  return idx < handLength ? idx : -1;
+}
+
 // ---------- 放下判定(以地面 y=0 的命中點為準) ----------
 
 export const RACK_ZONE_Z = 3.15; // 超過此 z 視為牌架區
@@ -131,7 +163,7 @@ export function hitTarget(p, layout, handLength) {
   const rack = layout.rack ?? rackParams();
   if (p.z > RACK_ZONE_Z) {
     const row = p.z < RACK_ROW_SPLIT_Z ? 1 : 0;
-    const col = Math.max(0, Math.min(rack.cols - 1, Math.round((p.x - rack.x0) / RACK_SLOT_X)));
+    const col = Math.max(0, Math.min(rack.cols - 1, Math.round((p.x - rack.x0) / (rack.slotX ?? RACK_SLOT_X))));
     return { type: 'handpos', index: Math.min(handLength, row * rack.cols + col) };
   }
   for (const [id, r] of layout.sets) {
