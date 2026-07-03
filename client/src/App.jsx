@@ -8,7 +8,7 @@ import GameBoard from './pages/GameBoard.jsx';
 let bound = false;
 
 export default function App() {
-  const { room, results, toast, name, connected } = useStore();
+  const { room, results, toasts, name, connected } = useStore();
 
   useEffect(() => {
     if (!bound) {
@@ -27,7 +27,13 @@ export default function App() {
   return (
     <div className="app">
       {page}
-      {toast && <div className={`toast toast-${toast.kind}`}>{toast.text}</div>}
+      <div className="toast-stack">
+        {toasts.map((t) => (
+          <div key={t.id} className={`toast toast-${t.kind}`}>
+            {t.text}
+          </div>
+        ))}
+      </div>
       {name && !connected && socket.active !== false && (
         <div className="conn-banner">連線中斷,重新連線中…</div>
       )}

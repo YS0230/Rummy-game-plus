@@ -137,7 +137,7 @@ test('出完手牌獲勝並結算', () => {
 });
 
 test('抽牌跳過與已首攤玩家可重組桌面', () => {
-  const { game } = makeGame(2);
+  const { game, events } = makeGame(2);
   const meld = findTiles(game, [['red', 10], ['red', 11], ['red', 12], ['red', 13]]);
   const extra = findTiles(game, [['blue', 5]]);
   game.start();
@@ -146,11 +146,17 @@ test('抽牌跳過與已首攤玩家可重組桌面', () => {
   game.applyLayout('p1', [{ id: 'a', tileIds: meld.map((t) => t.id) }]);
   game.endTurn('p1');
 
-  // p2 抽牌跳過
+  // p2 抽牌跳過:本人要收到 game:drew 與含新磚的手牌
   const before = game.racks.get('p2').length;
+  events.length = 0;
   assert.ok(game.drawAndPass('p2').ok);
   assert.equal(game.racks.get('p2').length, before + 1);
   assert.equal(game.currentPlayerId, 'p1');
+  const drew = events.find((e) => e.to === 'p2' && e.event === 'game:drew');
+  assert.ok(drew, '抽牌者收到 game:drew');
+  const handEvt = events.filter((e) => e.to === 'p2' && e.event === 'game:hand').pop();
+  assert.equal(handEvt.data.length, before + 1, '抽牌者收到含新磚的手牌');
+  assert.ok(handEvt.data.some((t) => t.id === drew.data.id), '新磚在手牌中');
 
   // p1 已首攤:拆桌面順子 + 用手上的 blue5?不合法。改測:把 13 拆出來加自己手牌組新組 → 不合法會 fail
   // 合法重組:red10-13 拆成 10,11,12 留下,13 + 手牌不夠 → 直接抽牌

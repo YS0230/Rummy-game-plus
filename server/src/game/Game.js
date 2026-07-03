@@ -140,7 +140,8 @@ export class Game {
   autoPass(reason) {
     const pid = this.currentPlayerId;
     this.revertProvisional();
-    this.drawTile(pid);
+    const drawn = this.drawTile(pid);
+    if (drawn) this.cb.toPlayer(pid, 'game:drew', drawn);
     this.cb.broadcast('game:turnResult', {
       playerId: pid,
       ok: false,
@@ -160,6 +161,10 @@ export class Game {
     if (this.pool.length === 0) return null;
     const tile = this.pool.pop();
     this.racks.get(playerId).push(tile);
+    // 抽牌者仍是當前玩家時,暫定手牌一併加入,sendHand 才拿得到新磚
+    if (playerId === this.currentPlayerId && this.provisionalRack) {
+      this.provisionalRack.push(tile);
+    }
     return tile;
   }
 
@@ -214,6 +219,7 @@ export class Game {
     if (this.over || playerId !== this.currentPlayerId) return { ok: false, error: '不是你的回合' };
     this.revertProvisional();
     const tile = this.drawTile(playerId);
+    if (tile) this.cb.toPlayer(playerId, 'game:drew', tile);
     this.cb.broadcast('game:turnResult', {
       playerId,
       ok: true,
@@ -234,7 +240,8 @@ export class Game {
     }
     const fail = (msg) => {
       this.revertProvisional();
-      this.drawTile(playerId);
+      const penaltyTile = this.drawTile(playerId);
+      if (penaltyTile) this.cb.toPlayer(playerId, 'game:drew', penaltyTile);
       this.cb.broadcast('game:turnResult', {
         playerId,
         ok: false,

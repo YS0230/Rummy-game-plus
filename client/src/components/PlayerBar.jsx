@@ -1,5 +1,6 @@
 import React from 'react';
 import { useStore } from '../store.js';
+import RulesHelp from './RulesHelp.jsx';
 
 export default function PlayerBar() {
   const { game, playerId, room } = useStore();
@@ -8,6 +9,7 @@ export default function PlayerBar() {
       <div className="player-bar-left">
         <span className="room-tag">{room?.name}</span>
         <span className="muted">牌堆 {game.poolCount}</span>
+        <RulesHelp />
       </div>
       <div className="player-bar-players">
         {game.players.map((p) => (

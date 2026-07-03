@@ -6,11 +6,15 @@ export default function Chat() {
   const { chat, playerId } = useStore();
   const [text, setText] = useState('');
   const [open, setOpen] = useState(true);
+  const [seenCount, setSeenCount] = useState(chat.length);
   const listRef = useRef(null);
 
   useEffect(() => {
     listRef.current?.scrollTo(0, listRef.current.scrollHeight);
+    if (open) setSeenCount(chat.length);
   }, [chat, open]);
+
+  const unread = Math.max(0, chat.length - seenCount);
 
   const send = () => {
     const t = text.trim();
@@ -23,6 +27,7 @@ export default function Chat() {
     return (
       <button className="chat-toggle" onClick={() => setOpen(true)}>
         💬 聊天
+        {unread > 0 && <span className="chat-badge">{unread > 99 ? '99+' : unread}</span>}
       </button>
     );
   }

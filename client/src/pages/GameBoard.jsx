@@ -7,7 +7,7 @@ import {
   useSensor,
   useSensors,
 } from '@dnd-kit/core';
-import { useStore } from '../store.js';
+import { useStore, tileLabel } from '../store.js';
 import { req } from '../socket.js';
 import Tile from '../components/Tile.jsx';
 import Rack from '../components/Rack.jsx';
@@ -18,7 +18,7 @@ import Chat from '../components/Chat.jsx';
 import ResultModal from '../components/ResultModal.jsx';
 
 export default function GameBoard() {
-  const { game, hand, playerId, moveHandTile, showToast } = useStore();
+  const { game, hand, playerId, moveHandTile, showToast, turnFlash, drewOverlay } = useStore();
   const [activeTile, setActiveTile] = useState(null);
 
   const sensors = useSensors(
@@ -100,6 +100,18 @@ export default function GameBoard() {
         <Rack myTurn={myTurn} />
         <Chat />
         <ResultModal />
+        {turnFlash && <div className="turn-banner">🎯 輪到你了!</div>}
+        {drewOverlay && (
+          <div className="drew-overlay">
+            <div className="drew-card">
+              <span className="drew-title">你抽到了</span>
+              <div className="drew-tile">
+                <Tile tile={drewOverlay} />
+              </div>
+              <span className="drew-label">{tileLabel(drewOverlay)}</span>
+            </div>
+          </div>
+        )}
       </div>
       <DragOverlay dropAnimation={null}>
         {activeTile && <Tile tile={activeTile} dragging />}

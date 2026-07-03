@@ -530,22 +530,211 @@ select {
   font-weight: 700;
   background: #fdf3d0;
 }
-.toast {
+.toast-stack {
   position: fixed;
   top: 14px;
   left: 50%;
   transform: translateX(-50%);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  z-index: 60;
+  pointer-events: none;
+}
+.toast {
   background: #333;
   color: #fff;
   padding: 10px 18px;
   border-radius: 10px;
   font-size: 14px;
-  z-index: 60;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.4);
 }
 .toast-warn {
   background: #b3543f;
 }
+/* ---------- 抽牌/回合/未讀/規則 ---------- */
+.tile-drawn {
+  animation: drawn-glow 1s ease-in-out infinite alternate;
+  outline: 3px solid #ffd75e;
+  outline-offset: 1px;
+}
+@keyframes drawn-glow {
+  from {
+    box-shadow: 0 0 4px 1px rgba(255, 215, 94, 0.6);
+  }
+  to {
+    box-shadow: 0 0 14px 5px rgba(255, 215, 94, 0.95);
+  }
+}
+.rack-wrap.my-turn .rack {
+  outline: 3px solid #ffd75e;
+  animation: rack-pulse 1.4s ease-in-out infinite;
+}
+@keyframes rack-pulse {
+  0%,
+  100% {
+    outline-color: #ffd75e;
+  }
+  50% {
+    outline-color: rgba(255, 215, 94, 0.25);
+  }
+}
+.turn-tag {
+  background: #ffd75e;
+  color: #5b430a;
+  font-size: 12px;
+  font-weight: 700;
+  padding: 3px 10px;
+  border-radius: 999px;
+}
+.turn-banner {
+  position: fixed;
+  top: 38%;
+  left: 50%;
+  transform: translateX(-50%);
+  background: #ffd75e;
+  color: #4a3606;
+  font-size: 30px;
+  font-weight: 800;
+  padding: 18px 40px;
+  border-radius: 16px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.45);
+  z-index: 55;
+  animation: banner-pop 2.5s ease forwards;
+  pointer-events: none;
+}
+@keyframes banner-pop {
+  0% {
+    opacity: 0;
+    transform: translateX(-50%) scale(0.7);
+  }
+  12% {
+    opacity: 1;
+    transform: translateX(-50%) scale(1.05);
+  }
+  20% {
+    transform: translateX(-50%) scale(1);
+  }
+  80% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+  }
+}
+.drew-overlay {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 56;
+  pointer-events: none;
+}
+.drew-card {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 10px;
+  background: rgba(20, 40, 30, 0.92);
+  border: 2px solid #ffd75e;
+  border-radius: 18px;
+  padding: 20px 36px;
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.5);
+  animation: drew-pop 2.2s ease forwards;
+}
+.drew-title {
+  color: #ffd75e;
+  font-size: 16px;
+  font-weight: 700;
+}
+.drew-tile .tile {
+  transform: scale(1.9);
+  margin: 26px 18px;
+  cursor: default;
+}
+.drew-label {
+  color: #fff;
+  font-size: 15px;
+  font-weight: 600;
+}
+@keyframes drew-pop {
+  0% {
+    opacity: 0;
+    transform: scale(0.6) translateY(30px);
+  }
+  12% {
+    opacity: 1;
+    transform: scale(1.04) translateY(0);
+  }
+  20% {
+    transform: scale(1);
+  }
+  82% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  100% {
+    opacity: 0;
+    transform: scale(0.92) translateY(-16px);
+  }
+}
+.chat-badge {
+  position: absolute;
+  top: -8px;
+  right: -8px;
+  background: #d64541;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  min-width: 20px;
+  height: 20px;
+  border-radius: 999px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 5px;
+  box-shadow: 0 2px 5px rgba(0, 0, 0, 0.35);
+}
+.rules-modal {
+  max-width: 460px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+  text-align: left;
+  background: #ffffff;
+  color: #1a1a1a;
+}
+.rules-modal h2 {
+  text-align: center;
+  color: #111;
+}
+.rules-body {
+  overflow-y: auto;
+  font-size: 15px;
+  line-height: 1.7;
+  margin-bottom: 14px;
+  color: #1a1a1a;
+}
+.rules-body b {
+  color: #000;
+}
+.rules-body h3 {
+  font-size: 15px;
+  margin: 14px 0 4px;
+  color: #0e5c38;
+  border-left: 4px solid #2f9e6b;
+  padding-left: 8px;
+}
+.rules-body p,
+.rules-body ul {
+  margin: 4px 0;
+}
+.rules-body ul {
+  padding-left: 20px;
+}
+
 .conn-banner {
   position: fixed;
   bottom: 0;
