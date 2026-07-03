@@ -14,7 +14,10 @@ const TILE_GAP = 0.08; // 組內牌距
 const SET_PAD = 0.16; // 組底板留邊
 const SET_GAP = 0.55; // 組間距
 const ROW_PITCH = TILE_H + 2 * SET_PAD + 0.42;
-const TABLE_Z0 = -4.0; // 第一列中心 z
+const MIN_ROW_PITCH = TILE_H + 2 * SET_PAD + 0.14; // 壓縮列距下限(牌組深度+小縫)
+const TABLE_Z0 = -4.6; // 第一列中心 z
+const TABLE_MAX_Z = 4.0; // 最後一列中心 z 上限(牌架已移出桌面,可用到毛氈前緣)
+const MIN_TABLE_SCALE = 0.6; // 牌組過多時整體縮小的下限
 
 export const NEWSET_ID = '__newset__';
 export const NEWSET_W = 2.6;
@@ -25,7 +28,7 @@ export const RACK_LEAN = 0.9; // 後仰角(rad,自直立起算)
 export const RACK_COLS = 11; // 預設每排格數(直向螢幕用較少,見 rackParams)
 export const RACK_SLOT_X = 0.86;
 export const RACK_ROW_PITCH = 1.18; // 排距(沿斜面)
-export const RACK_FOOT_Z = 4.94; // 牌底邊落點 z
+export const RACK_FOOT_Z = 7.95; // 牌底邊落點 z(底座在木框 6.35 之外,斜板上緣不越過毛氈邊 5.8)
 export const RACK_SHELF_Y = 0.12; // 架面高度
 
 /**
@@ -82,42 +85,72 @@ export function computeLayout(table, hand, opts = {}) {
   }));
   entries.push({ id: NEWSET_ID, ordered: [], w: NEWSET_W, valid: true });
 
-  const rows = [];
-  let row = [];
-  let rowW = 0;
-  for (const e of entries) {
-    const need = rowW === 0 ? e.w : rowW + SET_GAP + e.w;
-    if (rowW > 0 && need > usableW) {
-      rows.push({ items: row, w: rowW });
-      row = [e];
-      rowW = e.w;
-    } else {
-      row.push(e);
-      rowW = need;
+  // 依縮放比例 flex-wrap 分列(縮小模式時放寬可用寬度,毛氈還有餘裕)
+  const wrap = (s) => {
+    const limit = s < 1 ? usableW + 1.0 : usableW;
+    const rows = [];
+    let row = [];
+    let rowW = 0;
+    for (const e of entries) {
+      const ew = e.w * s;
+      const need = rowW === 0 ? ew : rowW + SET_GAP * s + ew;
+      if (rowW > 0 && need > limit) {
+        rows.push({ items: row, w: rowW });
+        row = [e];
+        rowW = ew;
+      } else {
+        row.push(e);
+        rowW = need;
+      }
     }
+    if (row.length) rows.push({ items: row, w: rowW });
+    return rows;
+  };
+
+  // 列數過多時不往牌架方向長:先壓縮列距,仍放不下就整體縮小重排(下限 0.7)
+  let scale = 1;
+  let rows = wrap(scale);
+  let pitch = ROW_PITCH;
+  for (;;) {
+    if (TABLE_Z0 + (rows.length - 1) * ROW_PITCH * scale <= TABLE_MAX_Z) {
+      pitch = ROW_PITCH * scale;
+      break;
+    }
+    const needed = (TABLE_MAX_Z - TABLE_Z0) / (rows.length - 1);
+    if (needed >= MIN_ROW_PITCH * scale) {
+      pitch = needed;
+      break;
+    }
+    if (scale <= MIN_TABLE_SCALE) {
+      pitch = MIN_ROW_PITCH * scale; // 極端情況:接受最後一列略超線
+      break;
+    }
+    scale = Math.max(MIN_TABLE_SCALE, scale - 0.05);
+    rows = wrap(scale);
   }
-  if (row.length) rows.push({ items: row, w: rowW });
 
   rows.forEach((r, ri) => {
     let x = -r.w / 2;
-    const z = TABLE_Z0 + ri * ROW_PITCH;
+    const z = TABLE_Z0 + ri * pitch;
     for (const e of r.items) {
+      const ew = e.w * scale;
       sets.set(e.id, {
-        x: x + e.w / 2,
+        x: x + ew / 2,
         z,
-        w: e.w,
-        d: e.id === NEWSET_ID ? NEWSET_D : TILE_H + SET_PAD * 2,
+        w: ew,
+        d: (e.id === NEWSET_ID ? NEWSET_D : TILE_H + SET_PAD * 2) * scale,
         valid: e.valid,
       });
       e.ordered.forEach((t, i) => {
         tiles.set(t.id, {
-          pos: [x + SET_PAD + TILE_W / 2 + i * (TILE_W + TILE_GAP), TILE_T / 2, z],
+          pos: [x + (SET_PAD + TILE_W / 2 + i * (TILE_W + TILE_GAP)) * scale, (TILE_T / 2) * scale, z],
           rot: TABLE_TILE_ROT,
           zone: 'table',
           setId: e.id,
+          scale,
         });
       });
-      x += e.w + SET_GAP;
+      x += ew + SET_GAP * scale;
     }
   });
 
@@ -152,8 +185,8 @@ export function rackHoverIndex(p, layout, handLength) {
 
 // ---------- 放下判定(以地面 y=0 的命中點為準) ----------
 
-export const RACK_ZONE_Z = 3.15; // 超過此 z 視為牌架區
-const RACK_ROW_SPLIT_Z = 4.05; // 前後排分界
+export const RACK_ZONE_Z = 5.4; // 超過此 z 視為牌架區
+const RACK_ROW_SPLIT_Z = 6.6; // 前後排分界
 
 /**
  * 依地面命中點回傳拖放目標,形狀與 dnd-kit droppable data 相同:

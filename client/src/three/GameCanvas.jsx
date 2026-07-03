@@ -21,12 +21,12 @@ function ResponsiveCamera() {
   const controls = useThree((s) => s.controls);
   useEffect(() => {
     const portrait = size.width / size.height < 0.95;
-    camera.fov = portrait ? Math.min(74, 45 / Math.max(0.6, size.width / size.height)) : 45;
+    camera.fov = portrait ? Math.min(74, 48 / Math.max(0.6, size.width / size.height)) : 48;
     camera.updateProjectionMatrix();
     if (portrait) {
-      camera.position.set(0, 9, 11);
+      camera.position.set(0, 10, 13.4);
       if (controls) {
-        controls.target.set(0, 0, 1.9);
+        controls.target.set(0, 0, 2.6);
         controls.update();
       }
     }
@@ -163,19 +163,19 @@ export default function GameCanvas({ myTurn }) {
       <Canvas
         shadows={!LOW_SPEC}
         dpr={LOW_SPEC ? [1, 1.5] : [1, 1.75]}
-        camera={{ fov: 45, position: [0, 10.2, 9.6], near: 0.5, far: 60 }}
+        camera={{ fov: 48, position: [0, 12, 13], near: 0.5, far: 60 }}
       >
         <color attach="background" args={['#12241c']} />
-        <fog attach="fog" args={['#12241c', 22, 40]} />
+        <fog attach="fog" args={['#12241c', 24, 42]} />
         <ResponsiveCamera />
         <Lights />
         <Scene myTurn={myTurn} />
         <OrbitControls
           makeDefault
-          target={[0, 0, 0.8]}
+          target={[0, 0, 2.2]}
           enablePan={false}
           minDistance={7}
-          maxDistance={16}
+          maxDistance={17}
           minPolarAngle={Math.PI * 0.2}
           maxPolarAngle={Math.PI * 0.42}
           minAzimuthAngle={-Math.PI / 6}

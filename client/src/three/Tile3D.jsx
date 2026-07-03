@@ -32,6 +32,8 @@ export default function Tile3D({ tile, target, dragging, dragPos, onTileDown, dr
   useFrame((state, dt) => {
     const g = ref.current;
     if (!g) return;
+    // 桌面牌組過多時整體縮小(layout 給的 scale);拖曳中恢復原尺寸
+    easing.damp3(g.scale, dragging ? 1 : target.scale ?? 1, SMOOTH, dt);
     if (dragging) {
       easing.damp3(g.position, dragPos, DRAG_SMOOTH, dt);
       easing.dampE(g.rotation, TABLE_TILE_ROT, 0.1, dt);
