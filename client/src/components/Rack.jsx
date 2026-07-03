@@ -37,10 +37,10 @@ export default function Rack({ myTurn, onTileDoubleClick }) {
         <span className="muted">手牌 {hand.length} 張</span>
         {myTurn && <span className="turn-tag">🎯 你的回合</span>}
         <button className="small" onClick={() => sortHand('color')}>
-          依色排序
+          789
         </button>
         <button className="small" onClick={() => sortHand('num')}>
-          依數字排序
+          777
         </button>
       </div>
       <div ref={drop.setNodeRef} className={`rack ${drop.isOver ? 'rack-over' : ''}`}>
