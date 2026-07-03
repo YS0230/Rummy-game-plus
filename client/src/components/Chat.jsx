@@ -2,10 +2,10 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store.js';
 import { req } from '../socket.js';
 
-export default function Chat() {
+export default function Chat({ defaultOpen = true }) {
   const { chat, playerId } = useStore();
   const [text, setText] = useState('');
-  const [open, setOpen] = useState(true);
+  const [open, setOpen] = useState(defaultOpen);
   const [seenCount, setSeenCount] = useState(chat.length);
   const listRef = useRef(null);
 
