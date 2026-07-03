@@ -56,16 +56,17 @@ const MIN_TABLE_SCALE = 0.5; // 低於此縮放牌太小難點按,改回捲動
 
 /**
  * 自動縮放 + FLIP。
- * 縮放:牌組總高超出桌面時,內層以 CSS zoom 縮小,牌變小、每列自動塞更多組,
- * 全部牌組免捲動可見。用 zoom 而非 transform: scale——zoom 參與版面計算,
- * scrollHeight 會跟著變小(transform 縮小後 Chrome 仍以未縮放版面算捲動範圍,會留白)。
- * 顯示高度隨 zoom 縮小單調遞減,可二分搜尋最大可用值。
- * FLIP:佈局變動時牌組從舊位置平滑滑到新位置;translate 在 zoom 內會被放大,座標須除以 zoom。
+ * 縮放:牌組總高超出桌面時,調小 CSS 變數 --ts,牌面/間距/字級以 calc() 等比縮小,
+ * 每列自動塞更多組,全部牌組免捲動可見。
+ * 刻意不用 zoom / transform: scale——兩者都會讓量測座標與真實版面脫鉤
+ * (transform: scale 後 Chrome scrollHeight 仍算未縮放版面;zoom 在行動端會讓
+ * dnd-kit 拖曳座標對不上)。--ts 產生的是真實版面,拖放量測全是真座標。
+ * 顯示高度隨 --ts 縮小單調遞減,可二分搜尋最大可用值。
+ * FLIP:佈局變動時牌組從舊位置平滑滑到新位置。
  */
 function useFitAndFlip(table) {
   const areaRef = useRef(null);
   const innerRef = useRef(null);
-  const scaleRef = useRef(1);
   const prevRects = useRef(new Map());
 
   useLayoutEffect(() => {
@@ -73,26 +74,22 @@ function useFitAndFlip(table) {
     const inner = innerRef.current;
     if (!area || !inner) return;
     const apply = (s) => {
-      inner.style.zoom = s === 1 ? '' : String(s);
+      if (s === 1) inner.style.removeProperty('--ts');
+      else inner.style.setProperty('--ts', s.toFixed(4));
     };
-    // getBoundingClientRect 回傳實際像素(含 zoom),offsetHeight 在 zoom 下單位不可靠
-    const shownH = () => inner.getBoundingClientRect().height;
     const fit = () => {
       const cs = getComputedStyle(area);
       const availH =
         area.clientHeight - parseFloat(cs.paddingTop) - parseFloat(cs.paddingBottom);
       apply(1);
-      if (shownH() <= availH) {
-        scaleRef.current = 1;
-        return;
-      }
+      if (inner.offsetHeight <= availH) return;
       let lo = MIN_TABLE_SCALE;
       let hi = 1;
       let best = MIN_TABLE_SCALE;
       for (let i = 0; i < 7; i++) {
         const mid = (lo + hi) / 2;
         apply(mid);
-        if (shownH() <= availH) {
+        if (inner.offsetHeight <= availH) {
           best = mid;
           lo = mid;
         } else {
@@ -100,7 +97,6 @@ function useFitAndFlip(table) {
         }
       }
       apply(best);
-      scaleRef.current = best;
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -113,14 +109,13 @@ function useFitAndFlip(table) {
     if (!inner) return;
     // 基準取內層自身的 rect,捲動時基準跟著位移,不需再補 scrollTop
     const base = inner.getBoundingClientRect();
-    const scale = scaleRef.current;
     const rects = new Map();
     for (const el of inner.querySelectorAll('[data-flip-id]')) {
       const r = el.getBoundingClientRect();
       rects.set(el.dataset.flipId, {
         el,
-        left: (r.left - base.left) / scale,
-        top: (r.top - base.top) / scale,
+        left: r.left - base.left,
+        top: r.top - base.top,
       });
     }
     for (const [id, cur] of rects) {

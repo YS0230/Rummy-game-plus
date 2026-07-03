@@ -367,13 +367,41 @@ select {
   overflow-x: hidden;
   scrollbar-gutter: stable; /* 捲軸出現/消失不改變內容寬度,避免整片重排 */
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.25);
+  /* 桌面內牌面/間距的基準尺寸,--ts 縮放時等比縮小 */
+  --t-w: 40px;
+  --t-h: 56px;
+  --t-fs: 22px;
+  --t-fs-joker: 26px;
+  --t-gap: 12px;
+  --nsz-py: 18px;
+  --nsz-px: 22px;
+  --nsz-fs: 13px;
 }
-/* 內層由 TableArea 依內容高度動態設 zoom,見 useFitAndFlip */
+/* --ts(0.5~1)由 TableArea useFitAndFlip 依內容高度動態設定。
+   用 calc 縮小真實版面,不用 zoom/transform——那會讓 dnd-kit 拖曳座標脫鉤 */
 .table-scale {
   display: flex;
   flex-wrap: wrap;
-  gap: 12px;
+  gap: calc(var(--t-gap) * var(--ts, 1));
   align-content: flex-start;
+}
+.table-scale .table-set {
+  gap: calc(3px * var(--ts, 1));
+  padding: calc(6px * var(--ts, 1));
+}
+.table-scale .tile {
+  width: calc(var(--t-w) * var(--ts, 1));
+  height: calc(var(--t-h) * var(--ts, 1));
+}
+.table-scale .tile-num {
+  font-size: calc(var(--t-fs) * var(--ts, 1));
+}
+.table-scale .tile-joker .tile-num {
+  font-size: calc(var(--t-fs-joker) * var(--ts, 1));
+}
+.table-scale .new-set-zone {
+  padding: calc(var(--nsz-py) * var(--ts, 1)) calc(var(--nsz-px) * var(--ts, 1));
+  font-size: calc(var(--nsz-fs) * var(--ts, 1));
 }
 .table-set {
   display: flex;
@@ -879,9 +907,14 @@ select {
   }
   .table-area {
     padding: 10px;
-  }
-  .table-scale {
-    gap: 8px;
+    --t-w: 34px;
+    --t-h: 48px;
+    --t-fs: 18px;
+    --t-fs-joker: 21px;
+    --t-gap: 8px;
+    --nsz-py: 14px;
+    --nsz-px: 16px;
+    --nsz-fs: 12px;
   }
   .new-set-zone {
     padding: 14px 16px;
