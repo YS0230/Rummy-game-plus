@@ -3,7 +3,7 @@ import { useStore } from '../store.js';
 import { req } from '../socket.js';
 
 export default function TurnControls({ myTurn }) {
-  const { game, showToast } = useStore();
+  const { game, showToast, flagInvalidSets } = useStore();
   const [now, setNow] = useState(Date.now());
 
   useEffect(() => {
@@ -18,7 +18,10 @@ export default function TurnControls({ myTurn }) {
 
   const act = async (event, payload) => {
     const res = await req(event, payload);
-    if (!res.ok && res.error) showToast(res.error, 'warn');
+    if (!res.ok && res.error) {
+      showToast(res.error, 'warn');
+      if (res.invalidSetIds?.length) flagInvalidSets(res.invalidSetIds);
+    }
   };
 
   return (
@@ -32,7 +35,7 @@ export default function TurnControls({ myTurn }) {
       {myTurn && (
         <div className="turn-buttons">
           <button className="primary" disabled={placedCount === 0} onClick={() => act('game:endTurn')}>
-            結束回合{placedCount > 0 ? `(出 ${placedCount} 張)` : ''}
+            出牌{placedCount > 0 ? `(${placedCount} 張)` : ''}
           </button>
           <button onClick={() => act('game:draw')}>抽牌並跳過</button>
           <button className="small" disabled={placedCount === 0} onClick={() => act('game:reset')}>

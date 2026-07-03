@@ -35,6 +35,14 @@ export const useStore = create((set, get) => ({
   toasts: [],
   drewTile: null, // 剛抽到的磚(牌架高亮用)
   drewOverlay: null, // 抽牌中央動畫
+  invalidSetIds: [], // 出牌驗證失敗的牌組(紅色閃爍提醒)
+
+  flagInvalidSets: (ids) => {
+    set({ invalidSetIds: ids });
+    setTimeout(() => {
+      if (get().invalidSetIds === ids) set({ invalidSetIds: [] });
+    }, 4000);
+  },
   turnFlash: false, // 輪到自己的提示橫幅
 
   setName: (name) => set({ name }),

@@ -65,7 +65,7 @@ test('首攤 30 點:成功提交、換人', () => {
   game.dispose();
 });
 
-test('首攤不足 30 點:還原 + 罰抽一張', () => {
+test('首攤不足 30 點:提示但不強制結束,回合繼續可調整', () => {
   const { game } = makeGame(2);
   const meld = findTiles(game, [['red', 1], ['blue', 1], ['black', 1]]); // 3 點
   game.start();
@@ -75,9 +75,31 @@ test('首攤不足 30 點:還原 + 罰抽一張', () => {
   assert.ok(game.applyLayout('p1', [{ id: 'a', tileIds: meld.map((t) => t.id) }]).ok);
   const r = game.endTurn('p1');
   assert.ok(!r.ok);
-  assert.equal(game.table.length, 0); // 已還原
-  assert.equal(game.racks.get('p1').length, 7); // 6 + 罰抽 1
+  assert.match(r.error, /30 點/);
+  assert.equal(game.currentPlayerId, 'p1'); // 仍是 p1 回合
+  assert.equal(game.provisionalTable.length, 1); // 暫定桌面保留,可繼續調整
+  assert.equal(game.racks.get('p1').length, 6); // 沒有罰抽
+  // 改為抽牌結束
+  assert.ok(game.drawAndPass('p1').ok);
   assert.equal(game.currentPlayerId, 'p2');
+  game.dispose();
+});
+
+test('不合法牌組:回傳 invalidSetIds 供前端標示', () => {
+  const { game } = makeGame(2);
+  const meld = findTiles(game, [['red', 10], ['red', 11], ['red', 12]]);
+  const bad = findTiles(game, [['blue', 2], ['orange', 9]]);
+  game.start();
+  game.racks.set('p1', [...meld, ...bad]);
+  game.provisionalRack = [...game.racks.get('p1')];
+  game.applyLayout('p1', [
+    { id: 'good', tileIds: meld.map((t) => t.id) },
+    { id: 'bad', tileIds: bad.map((t) => t.id) },
+  ]);
+  const r = game.endTurn('p1');
+  assert.ok(!r.ok);
+  assert.deepEqual(r.invalidSetIds, ['bad']);
+  assert.equal(game.currentPlayerId, 'p1');
   game.dispose();
 });
 

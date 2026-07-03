@@ -27,6 +27,22 @@ const once = (s, event, timeout = 5000) =>
       r(data);
     });
   });
+// 等到符合條件的事件(忽略中途其他同名事件)
+const waitFor = (s, event, pred, timeout = 5000) =>
+  new Promise((r) => {
+    const t = setTimeout(() => {
+      s.off(event, h);
+      r(null);
+    }, timeout);
+    const h = (data) => {
+      if (pred(data)) {
+        clearTimeout(t);
+        s.off(event, h);
+        r(data);
+      }
+    };
+    s.on(event, h);
+  });
 
 const A = await connect('e2e-player-a', '小明');
 const B = await connect('e2e-player-b', '小華');
@@ -76,11 +92,15 @@ check(
   othState?.table?.length === 1 && othState?.placedTileIds?.length === 1,
   '對手即時看到暫定桌面'
 );
-const afterFailP = once(othSock, 'game:state', 2000);
 const end = await req(curSock, 'game:endTurn');
 check(!end.ok, '不合法出牌被拒(單張非牌組)');
+check(end.invalidSetIds?.length === 1 && end.invalidSetIds[0] === 'x', '回傳不合法牌組 id');
+// 回合不強制結束,仍可調整;改為抽牌結束
+const afterFailP = once(othSock, 'game:state', 2000);
+const giveUp = await req(curSock, 'game:draw');
+check(giveUp.ok, '改為抽牌結束回合');
 const afterFail = await afterFailP;
-check(afterFail?.current !== cur, '罰抽後輪到下一位');
+check(afterFail?.current !== cur, '抽牌後輪到下一位');
 
 // 用別人的磚 → 拒絕
 const cur2 = afterFail.current;
@@ -96,10 +116,15 @@ const drew = await req(sock2, 'game:draw');
 check(drew.ok, '抽牌並跳過');
 
 // 斷線重連
-const dcP = once(A, 'game:state', 3000);
+const dcP = waitFor(
+  A,
+  'game:state',
+  (st2) => st2?.players?.find((p) => p.playerId === 'e2e-player-b')?.connected === false,
+  3000
+);
 B.disconnect();
 const stAfterDc = await dcP;
-check(stAfterDc?.players?.find((p) => p.playerId === 'e2e-player-b')?.connected === false, 'A 看到 B 斷線');
+check(stAfterDc !== null, 'A 看到 B 斷線');
 const B2 = await connect('e2e-player-b', '小華');
 const full = await once(B2, 'state:full', 3000);
 check(!!full?.game && Array.isArray(full?.hand) && full.hand.length > 0, 'B 重連取回完整狀態與手牌');

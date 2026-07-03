@@ -366,6 +366,36 @@ select {
 .table-set.invalid {
   border-color: #ff7b6b;
 }
+.table-set.invalid-flash {
+  animation: invalid-shake 0.5s ease, invalid-blink 1s ease-in-out 3;
+  border-color: #ff5240;
+}
+@keyframes invalid-shake {
+  0%,
+  100% {
+    transform: translateX(0);
+  }
+  25% {
+    transform: translateX(-5px);
+  }
+  50% {
+    transform: translateX(5px);
+  }
+  75% {
+    transform: translateX(-3px);
+  }
+}
+@keyframes invalid-blink {
+  0%,
+  100% {
+    background: rgba(0, 0, 0, 0.14);
+    box-shadow: none;
+  }
+  50% {
+    background: rgba(255, 82, 64, 0.35);
+    box-shadow: 0 0 14px rgba(255, 82, 64, 0.8);
+  }
+}
 .table-set.set-over,
 .new-set-zone.set-over {
   border-color: #ffd75e;

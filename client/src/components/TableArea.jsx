@@ -22,7 +22,7 @@ function TableTile({ tile, setId, myTurn, placed }) {
   );
 }
 
-function TableSet({ set, myTurn, placedSet }) {
+function TableSet({ set, myTurn, placedSet, flagged }) {
   const drop = useDroppable({
     id: `set-${set.id}`,
     data: { type: 'set', setId: set.id },
@@ -33,7 +33,9 @@ function TableSet({ set, myTurn, placedSet }) {
   return (
     <div
       ref={drop.setNodeRef}
-      className={`table-set ${valid ? '' : 'invalid'} ${drop.isOver ? 'set-over' : ''}`}
+      className={`table-set ${valid ? '' : 'invalid'} ${drop.isOver ? 'set-over' : ''} ${
+        flagged ? 'invalid-flash' : ''
+      }`}
     >
       {tiles.map((t) => (
         <TableTile
@@ -49,13 +51,19 @@ function TableSet({ set, myTurn, placedSet }) {
 }
 
 export default function TableArea({ myTurn, placedSet }) {
-  const { game } = useStore();
+  const { game, invalidSetIds } = useStore();
   const newSet = useDroppable({ id: 'newset', data: { type: 'newset' }, disabled: !myTurn });
 
   return (
     <div className="table-area">
       {game.table.map((s) => (
-        <TableSet key={s.id} set={s} myTurn={myTurn} placedSet={placedSet} />
+        <TableSet
+          key={s.id}
+          set={s}
+          myTurn={myTurn}
+          placedSet={placedSet}
+          flagged={invalidSetIds.includes(s.id)}
+        />
       ))}
       <div
         ref={newSet.setNodeRef}

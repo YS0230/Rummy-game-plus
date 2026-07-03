@@ -1,5 +1,4 @@
 import {
-  validateTable,
   isValidSet,
   setScore,
   rackPenalty,
@@ -231,28 +230,25 @@ export class Game {
     return { ok: true };
   }
 
-  /** 結束回合:驗證暫定桌面 */
+  /**
+   * 出牌:驗證暫定桌面。不合法時只回傳提示(含不合法牌組 id),
+   * 回合繼續讓玩家調整;逾時才由計時器自動還原+罰抽。
+   */
   endTurn(playerId) {
     if (this.over || playerId !== this.currentPlayerId) return { ok: false, error: '不是你的回合' };
     const placed = this.placedThisTurn();
     if (placed.length === 0) {
       return { ok: false, error: '尚未出牌,請出牌或抽牌' };
     }
-    const fail = (msg) => {
-      this.revertProvisional();
-      const penaltyTile = this.drawTile(playerId);
-      if (penaltyTile) this.cb.toPlayer(playerId, 'game:drew', penaltyTile);
-      this.cb.broadcast('game:turnResult', {
-        playerId,
-        ok: false,
-        message: `${this.names.get(playerId)} 出牌不合法(${msg}),還原並罰抽一張`,
-      });
-      this.sendHand(playerId);
-      this.nextTurn();
-      return { ok: false, error: msg };
-    };
+    const invalid = (msg, invalidSetIds = []) => ({ ok: false, error: msg, invalidSetIds });
 
-    if (!validateTable(this.provisionalTable)) return fail('桌面存在不合法牌組');
+    const badSets = this.provisionalTable.filter((s) => !isValidSet(s.tiles));
+    if (badSets.length > 0) {
+      return invalid(
+        `有 ${badSets.length} 組牌不符規則(需同色連號或同號異色,至少 3 張),請調整`,
+        badSets.map((s) => s.id)
+      );
+    }
 
     if (!this.hasMelded.has(playerId)) {
       // 首攤:不可重組桌面,新牌組須全為自己手牌且合計 >= 30
@@ -261,6 +257,7 @@ export class Game {
       );
       const placedSet = new Set(placed);
       let score = 0;
+      const mixedIds = [];
       for (const set of this.provisionalTable) {
         const sig = [...set.tiles.map((t) => t.id)].sort().join(',');
         if (snapSigs.has(sig)) {
@@ -268,13 +265,15 @@ export class Game {
           continue;
         }
         if (!set.tiles.every((t) => placedSet.has(t.id))) {
-          return fail('首攤前不能動用桌面的牌');
+          mixedIds.push(set.id);
+          continue;
         }
-        if (!isValidSet(set.tiles)) return fail('牌組不合法');
         score += setScore(set.tiles);
       }
-      if (snapSigs.size > 0) return fail('首攤前不能重組桌面');
-      if (score < INITIAL_MELD_MIN) return fail(`首攤需至少 ${INITIAL_MELD_MIN} 點(目前 ${score} 點)`);
+      if (mixedIds.length > 0) return invalid('首攤前不能動用桌面既有的牌,請調整', mixedIds);
+      if (snapSigs.size > 0) return invalid('首攤前不能重組桌面既有牌組,請按「還原」調整');
+      if (score < INITIAL_MELD_MIN)
+        return invalid(`首攤需至少 ${INITIAL_MELD_MIN} 點,目前只有 ${score} 點`);
       this.hasMelded.add(playerId);
     }
 
