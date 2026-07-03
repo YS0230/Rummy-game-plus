@@ -40,6 +40,29 @@ export default function GameBoard() {
     if (!res.ok && res.error) showToast(res.error, 'warn');
   };
 
+  // 雙擊手牌:自動排到「建立新牌組」區
+  const playTileToNewSet = (tileId) => {
+    if (!myTurn) return;
+    const layout = currentLayout();
+    layout.push({ id: `n-${Date.now().toString(36)}`, tileIds: [tileId] });
+    sendLayout(layout);
+  };
+
+  // 雙擊桌面牌組:收回這回合放進該組的牌
+  const recallSet = (setId) => {
+    if (!myTurn) return;
+    const layout = currentLayout();
+    const ls = layout.find((s) => s.id === setId);
+    if (!ls) return;
+    const kept = ls.tileIds.filter((id) => !placedSet.has(id));
+    if (kept.length === ls.tileIds.length) {
+      showToast('這個牌組沒有本回合放上的牌');
+      return;
+    }
+    ls.tileIds = kept;
+    sendLayout(layout);
+  };
+
   const onDragStart = ({ active }) => setActiveTile(active.data.current?.tile ?? null);
 
   const onDragEnd = ({ active, over }) => {
@@ -113,9 +136,9 @@ export default function GameBoard() {
     >
       <div className="game-page">
         <PlayerBar />
-        <TableArea myTurn={myTurn} placedSet={placedSet} />
+        <TableArea myTurn={myTurn} placedSet={placedSet} onSetDoubleClick={recallSet} />
         <TurnControls myTurn={myTurn} />
-        <Rack myTurn={myTurn} />
+        <Rack myTurn={myTurn} onTileDoubleClick={playTileToNewSet} />
         <Chat />
         <ResultModal />
         {turnFlash && <div className="turn-banner">🎯 輪到你了!</div>}

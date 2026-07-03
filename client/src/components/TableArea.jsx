@@ -22,7 +22,7 @@ function TableTile({ tile, setId, myTurn, placed }) {
   );
 }
 
-function TableSet({ set, myTurn, placedSet, flagged }) {
+function TableSet({ set, myTurn, placedSet, flagged, onDoubleClick }) {
   const drop = useDroppable({
     id: `set-${set.id}`,
     data: { type: 'set', setId: set.id },
@@ -37,6 +37,7 @@ function TableSet({ set, myTurn, placedSet, flagged }) {
       className={`table-set ${valid ? '' : 'invalid'} ${drop.isOver ? 'set-over' : ''} ${
         flagged ? 'invalid-flash' : ''
       }`}
+      onDoubleClick={() => onDoubleClick(set.id)}
     >
       {tiles.map((t) => (
         <TableTile
@@ -86,7 +87,7 @@ function useFlipSets(table) {
   return areaRef;
 }
 
-export default function TableArea({ myTurn, placedSet }) {
+export default function TableArea({ myTurn, placedSet, onSetDoubleClick }) {
   const { game, invalidSetIds } = useStore();
   const newSet = useDroppable({ id: 'newset', data: { type: 'newset' }, disabled: !myTurn });
   const areaRef = useFlipSets(game.table);
@@ -100,6 +101,7 @@ export default function TableArea({ myTurn, placedSet }) {
           myTurn={myTurn}
           placedSet={placedSet}
           flagged={invalidSetIds.includes(s.id)}
+          onDoubleClick={onSetDoubleClick}
         />
       ))}
       <div

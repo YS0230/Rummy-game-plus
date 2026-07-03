@@ -3,7 +3,7 @@ import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useStore } from '../store.js';
 import Tile from './Tile.jsx';
 
-function RackTile({ tile, index, drawn }) {
+function RackTile({ tile, index, drawn, onDoubleClick }) {
   const drag = useDraggable({
     id: `hand-${tile.id}`,
     data: { tileId: tile.id, from: 'hand', tile },
@@ -19,6 +19,7 @@ function RackTile({ tile, index, drawn }) {
         {...drag.listeners}
         {...drag.attributes}
         style={{ opacity: drag.isDragging ? 0.3 : 1, touchAction: 'none' }}
+        onDoubleClick={() => onDoubleClick(tile.id)}
       >
         <Tile tile={tile} drawn={drawn} />
       </div>
@@ -26,7 +27,7 @@ function RackTile({ tile, index, drawn }) {
   );
 }
 
-export default function Rack({ myTurn }) {
+export default function Rack({ myTurn, onTileDoubleClick }) {
   const { hand, sortHand, drewTile } = useStore();
   const drop = useDroppable({ id: 'rack', data: { type: 'rack' } });
 
@@ -44,7 +45,13 @@ export default function Rack({ myTurn }) {
       </div>
       <div ref={drop.setNodeRef} className={`rack ${drop.isOver ? 'rack-over' : ''}`}>
         {hand.map((t, i) => (
-          <RackTile key={t.id} tile={t} index={i} drawn={drewTile?.id === t.id} />
+          <RackTile
+            key={t.id}
+            tile={t}
+            index={i}
+            drawn={drewTile?.id === t.id}
+            onDoubleClick={onTileDoubleClick}
+          />
         ))}
         {hand.length === 0 && <span className="muted">沒有手牌</span>}
       </div>
