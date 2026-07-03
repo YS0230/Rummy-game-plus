@@ -1,15 +1,26 @@
 import React from 'react';
 import { useStore } from '../store.js';
+import { req } from '../socket.js';
 import RulesHelp from './RulesHelp.jsx';
 
 export default function PlayerBar() {
   const { game, playerId, room } = useStore();
+
+  const leaveGame = async () => {
+    if (!window.confirm('確定要離開遊戲嗎?中途離開將直接判負。')) return;
+    await req('room:leave');
+    useStore.setState({ room: null, chat: [], game: null, hand: [], results: null });
+  };
+
   return (
     <div className="player-bar">
       <div className="player-bar-left">
         <span className="room-tag">{room?.name}</span>
         <span className="muted">牌堆 {game.poolCount}</span>
         <RulesHelp />
+        <button className="small danger" onClick={leaveGame}>
+          離開遊戲
+        </button>
       </div>
       <div className="player-bar-players">
         {game.players.map((p) => (
