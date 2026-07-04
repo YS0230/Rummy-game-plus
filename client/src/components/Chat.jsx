@@ -29,7 +29,7 @@ export default function Chat({ floatingToggle = true }) {
     if (!floatingToggle) return null;
     return (
       <button className="chat-toggle" onClick={() => setChatOpen(true)}>
-        💬 聊天
+        💬
         {unread > 0 && <span className="chat-badge">{unread > 99 ? '99+' : unread}</span>}
       </button>
     );

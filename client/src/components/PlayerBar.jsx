@@ -21,12 +21,12 @@ export default function PlayerBar() {
         <RulesHelp />
         {!chatOpen && (
           <button className="small chat-bar-btn" onClick={() => setChatOpen(true)}>
-            💬 聊天
+            💬
             {unread > 0 && <span className="chat-badge">{unread > 99 ? '99+' : unread}</span>}
           </button>
         )}
         <button className="small danger" onClick={leaveGame}>
-          🚪 離開遊戲
+          🚪
         </button>
       </div>
       <div className="player-bar-players">

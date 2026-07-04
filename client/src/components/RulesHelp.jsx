@@ -5,7 +5,7 @@ export default function RulesHelp() {
   return (
     <>
       <button className="small" onClick={() => setOpen(true)}>
-        📖 規則
+        📖
       </button>
       {open && (
         <div className="modal-backdrop" onClick={() => setOpen(false)}>
