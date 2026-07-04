@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useState } from 'react';
 import { useDraggable, useDroppable } from '@dnd-kit/core';
 import { useStore } from '../store.js';
 import Tile from './Tile.jsx';
@@ -27,7 +27,31 @@ function RackTile({ tile, drawn, hint, onDoubleClick }) {
   );
 }
 
-export default function Rack({ myTurn, onTileDoubleClick }) {
+function TurnTimer({ myTurn }) {
+  const { game } = useStore();
+  const [now, setNow] = useState(Date.now());
+
+  useEffect(() => {
+    const t = setInterval(() => setNow(Date.now()), 500);
+    return () => clearInterval(t);
+  }, []);
+
+  const remain = game.turnDeadline ? Math.max(0, Math.ceil((game.turnDeadline - now) / 1000)) : 0;
+  const total = game.turnSeconds ?? 60;
+  const pct = game.turnDeadline ? Math.max(0, Math.min(100, (remain / total) * 100)) : 0;
+  const currentName = game.players.find((p) => p.playerId === game.current)?.name;
+
+  return (
+    <div className="timer">
+      <div className="timer-bar" style={{ width: `${pct}%` }} />
+      <span className="timer-text">
+        {myTurn ? `你的回合 ${remain}s` : `等待 ${currentName ?? ''} 出牌 ${remain}s`}
+      </span>
+    </div>
+  );
+}
+
+export default function Rack({ myTurn, onTileDoubleClick, stagingOpen, onToggleStaging }) {
   const { hand, sortHand, drewTile, staging, hintGroups } = useStore();
   const drop = useDroppable({ id: 'rack', data: { type: 'rack' } });
 
@@ -39,16 +63,20 @@ export default function Rack({ myTurn, onTileDoubleClick }) {
   return (
     <div className={`rack-wrap ${myTurn ? 'my-turn' : ''}`}>
       <div className="rack-tools">
-        <span className="muted">
-          手牌 {hand.length} 張{stagedIds.size > 0 ? `(暫放 ${stagedIds.size})` : ''}
-        </span>
-        {myTurn && <span className="turn-tag">🎯 你的回合</span>}
         <button className="small" onClick={() => sortHand('color')}>
           789
         </button>
         <button className="small" onClick={() => sortHand('num')}>
           777
         </button>
+        <button
+          className="small"
+          title={stagingOpen ? '收合暫放區' : '展開暫放區'}
+          onClick={onToggleStaging}
+        >
+          📌{stagedIds.size > 0 ? `(${stagedIds.size})` : ''}
+        </button>
+        <TurnTimer myTurn={myTurn} />
       </div>
       <div ref={drop.setNodeRef} className={`rack ${drop.isOver ? 'rack-over' : ''}`}>
         {shown.map((t) => (

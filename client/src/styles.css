@@ -649,6 +649,10 @@ select {
 .rack-tools .muted {
   color: #a8c7b8;
 }
+.rack-tools .timer {
+  min-width: 140px;
+  height: 26px;
+}
 .rack {
   display: flex;
   flex-wrap: wrap;

@@ -68,7 +68,7 @@ export default function StagingArea({ myTurn, onSubmitSet }) {
   return (
     <div className="staging-wrap">
       <span className="staging-label" title="非自己回合也可先組牌,輪到你時再決定是否送出">
-        🧩 暫放區
+        📌 暫放區
       </span>
       {staging.map((s) => {
         const tiles = s.tileIds.map((id) => tileById.get(id)).filter(Boolean);

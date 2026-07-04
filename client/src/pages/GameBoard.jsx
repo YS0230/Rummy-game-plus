@@ -35,6 +35,7 @@ export default function GameBoard() {
     drewOverlay,
   } = useStore();
   const [activeTile, setActiveTile] = useState(null);
+  const [stagingOpen, setStagingOpen] = useState(true);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
@@ -78,6 +79,7 @@ export default function GameBoard() {
   const playTileToNewSet = (tileId) => {
     if (!myTurn) {
       stageTile(tileId);
+      setStagingOpen(true); // 收合時雙擊進暫放區,自動展開避免牌「消失」
       sounds.place();
       return;
     }
@@ -211,8 +213,13 @@ export default function GameBoard() {
         <PlayerBar />
         <TableArea myTurn={myTurn} placedSet={placedSet} onSetDoubleClick={recallSet} />
         <TurnControls myTurn={myTurn} />
-        <StagingArea myTurn={myTurn} onSubmitSet={submitStagedSet} />
-        <Rack myTurn={myTurn} onTileDoubleClick={playTileToNewSet} />
+        {stagingOpen && <StagingArea myTurn={myTurn} onSubmitSet={submitStagedSet} />}
+        <Rack
+          myTurn={myTurn}
+          onTileDoubleClick={playTileToNewSet}
+          stagingOpen={stagingOpen}
+          onToggleStaging={() => setStagingOpen((o) => !o)}
+        />
         <Chat floatingToggle={false} />
         <ResultModal />
         {turnFlash && <div className="turn-banner">🎯 輪到你了!</div>}
