@@ -42,7 +42,8 @@ export default function Room() {
           </div>
           <p className="muted">
             {room.players.length}/{room.maxPlayers} 位玩家 ·{' '}
-            {room.isPrivate ? '私人房' : '公開房'}
+            {room.isPrivate ? '私人房' : '公開房'} · 每回合 {room.turnSeconds ?? 60} 秒
+            {room.sortHint ? ' · 排序提示:開' : ''}
           </p>
 
           <ul className="player-list">

@@ -12,7 +12,7 @@ export class RoomManager {
     this.playerRoom = new Map(); // playerId -> roomId
   }
 
-  createRoom({ playerId, name, socketId }, { roomName, maxPlayers, isPrivate }) {
+  createRoom({ playerId, name, socketId }, { roomName, maxPlayers, isPrivate, turnSeconds, sortHint }) {
     const room = {
       id: roomId(),
       code: roomCode(),
@@ -20,6 +20,8 @@ export class RoomManager {
       hostId: playerId,
       maxPlayers: Math.min(4, Math.max(2, Number(maxPlayers) || 4)),
       isPrivate: !!isPrivate,
+      turnSeconds: Math.min(300, Math.max(15, Number(turnSeconds) || 60)),
+      sortHint: !!sortHint,
       status: 'waiting',
       players: [],
       game: null,
@@ -139,6 +141,8 @@ export class RoomManager {
       hostId: room.hostId,
       maxPlayers: room.maxPlayers,
       isPrivate: room.isPrivate,
+      turnSeconds: room.turnSeconds,
+      sortHint: room.sortHint,
       status: room.status,
       players: room.players.map((p) => ({
         playerId: p.playerId,

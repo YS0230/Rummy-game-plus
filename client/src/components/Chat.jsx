@@ -2,20 +2,21 @@ import React, { useEffect, useRef, useState } from 'react';
 import { useStore } from '../store.js';
 import { req } from '../socket.js';
 
-export default function Chat() {
-  const { chat, playerId } = useStore();
+/**
+ * floatingToggle:收合時是否顯示右下角浮動按鈕。
+ * 遊戲頁傳 false(改由 PlayerBar 的按鈕開啟,避免蓋住手牌)。
+ */
+export default function Chat({ floatingToggle = true }) {
+  const { chat, playerId, chatOpen, chatSeen, setChatOpen } = useStore();
   const [text, setText] = useState('');
-  // 手機(窄螢幕)預設收合,避免聊天室蓋住牌桌
-  const [open, setOpen] = useState(() => window.matchMedia('(min-width: 901px)').matches);
-  const [seenCount, setSeenCount] = useState(chat.length);
   const listRef = useRef(null);
 
   useEffect(() => {
     listRef.current?.scrollTo(0, listRef.current.scrollHeight);
-    if (open) setSeenCount(chat.length);
-  }, [chat, open]);
+    if (chatOpen) useStore.setState({ chatSeen: chat.length });
+  }, [chat, chatOpen]);
 
-  const unread = Math.max(0, chat.length - seenCount);
+  const unread = Math.max(0, chat.length - chatSeen);
 
   const send = () => {
     const t = text.trim();
@@ -24,9 +25,10 @@ export default function Chat() {
     setText('');
   };
 
-  if (!open) {
+  if (!chatOpen) {
+    if (!floatingToggle) return null;
     return (
-      <button className="chat-toggle" onClick={() => setOpen(true)}>
+      <button className="chat-toggle" onClick={() => setChatOpen(true)}>
         💬 聊天
         {unread > 0 && <span className="chat-badge">{unread > 99 ? '99+' : unread}</span>}
       </button>
@@ -37,7 +39,7 @@ export default function Chat() {
     <div className="chat">
       <div className="chat-head">
         <span>💬 聊天室</span>
-        <button className="small" onClick={() => setOpen(false)}>
+        <button className="small" onClick={() => setChatOpen(false)}>
           收合
         </button>
       </div>

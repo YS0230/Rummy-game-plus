@@ -159,7 +159,8 @@ export function registerHandlers(io, rooms) {
         room.status = 'playing';
         room.game = new Game(
           room.players.map((p) => ({ playerId: p.playerId, name: p.name })),
-          gameCallbacks(room)
+          gameCallbacks(room),
+          { turnSeconds: room.turnSeconds }
         );
         systemChat(room, '遊戲開始!');
         broadcastRoom(room);

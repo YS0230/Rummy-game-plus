@@ -9,6 +9,8 @@ export default function Lobby() {
   const [roomName, setRoomName] = useState(randomRoomName());
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [isPrivate, setIsPrivate] = useState(false);
+  const [turnSeconds, setTurnSeconds] = useState(60);
+  const [sortHint, setSortHint] = useState(true);
   const [code, setCode] = useState('');
 
   const ensureName = () => {
@@ -30,6 +32,8 @@ export default function Lobby() {
       roomName: roomName.trim(),
       maxPlayers,
       isPrivate,
+      turnSeconds,
+      sortHint,
     });
     if (!res.ok) showToast(res.error, 'warn');
   };
@@ -100,6 +104,27 @@ export default function Lobby() {
                 onChange={(e) => setIsPrivate(e.target.checked)}
               />
               私人房(僅限代碼加入)
+            </label>
+          </div>
+          <div className="row">
+            <label>每回合秒數</label>
+            <select value={turnSeconds} onChange={(e) => setTurnSeconds(Number(e.target.value))}>
+              <option value={30}>30 秒</option>
+              <option value={45}>45 秒</option>
+              <option value={60}>1 分鐘(預設)</option>
+              <option value={90}>1.5 分鐘</option>
+              <option value={120}>2 分鐘</option>
+              <option value={180}>3 分鐘</option>
+            </select>
+          </div>
+          <div className="row">
+            <label className="checkbox">
+              <input
+                type="checkbox"
+                checked={sortHint}
+                onChange={(e) => setSortHint(e.target.checked)}
+              />
+              排序後閃爍提示手牌中可組成的牌組
             </label>
           </div>
           <button className="primary" onClick={create}>

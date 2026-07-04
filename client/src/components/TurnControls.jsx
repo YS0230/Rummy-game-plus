@@ -13,7 +13,8 @@ export default function TurnControls({ myTurn }) {
   }, []);
 
   const remain = game.turnDeadline ? Math.max(0, Math.ceil((game.turnDeadline - now) / 1000)) : 0;
-  const pct = game.turnDeadline ? Math.max(0, Math.min(100, (remain / 60) * 100)) : 0;
+  const total = game.turnSeconds ?? 60;
+  const pct = game.turnDeadline ? Math.max(0, Math.min(100, (remain / total) * 100)) : 0;
   const placedCount = game.placedTileIds?.length ?? 0;
   const currentName = game.players.find((p) => p.playerId === game.current)?.name;
 

@@ -13,10 +13,12 @@ const DISCONNECT_SKIP_MS = 3000;
 /**
  * 一局 Rummikub。
  * callbacks: { broadcast(event,data), toPlayer(playerId,event,data), isConnected(playerId), onGameOver(results) }
+ * options: { turnSeconds } 每回合秒數(房間建立時設定,預設 60)
  */
 export class Game {
-  constructor(players, callbacks) {
+  constructor(players, callbacks, options = {}) {
     this.cb = callbacks;
+    this.turnSeconds = Math.min(300, Math.max(15, Number(options.turnSeconds) || TURN_SECONDS));
     this.order = players.map((p) => p.playerId);
     this.names = new Map(players.map((p) => [p.playerId, p.name]));
     const deck = shuffle(createTiles());
@@ -84,6 +86,7 @@ export class Game {
       })),
       current: this.currentPlayerId ?? null,
       turnDeadline: this.turnDeadline,
+      turnSeconds: this.turnSeconds,
       placedTileIds: this.placedThisTurn(),
       over: this.over,
     };
@@ -113,8 +116,8 @@ export class Game {
     this.snapshotTable = this.cloneTable(this.table);
     this.provisionalTable = this.cloneTable(this.table);
     this.provisionalRack = [...this.racks.get(this.currentPlayerId)];
-    this.turnDeadline = Date.now() + TURN_SECONDS * 1000;
-    this.turnTimer = setTimeout(() => this.onTimeout(), TURN_SECONDS * 1000);
+    this.turnDeadline = Date.now() + this.turnSeconds * 1000;
+    this.turnTimer = setTimeout(() => this.onTimeout(), this.turnSeconds * 1000);
     if (!this.cb.isConnected(this.currentPlayerId)) {
       this.skipTimer = setTimeout(() => {
         if (!this.over && !this.cb.isConnected(this.currentPlayerId)) {

@@ -15,13 +15,25 @@ import { isValidRun, isValidSet, sortRunForDisplay } from '../../../shared/valid
 import Tile from '../components/Tile.jsx';
 import Rack from '../components/Rack.jsx';
 import TableArea from '../components/TableArea.jsx';
+import StagingArea from '../components/StagingArea.jsx';
 import PlayerBar from '../components/PlayerBar.jsx';
 import TurnControls from '../components/TurnControls.jsx';
 import Chat from '../components/Chat.jsx';
 import ResultModal from '../components/ResultModal.jsx';
 
 export default function GameBoard() {
-  const { game, hand, playerId, moveHandTile, showToast, turnFlash, drewOverlay } = useStore();
+  const {
+    game,
+    hand,
+    playerId,
+    moveHandTile,
+    stageTile,
+    unstageTile,
+    clearStagingSet,
+    showToast,
+    turnFlash,
+    drewOverlay,
+  } = useStore();
   const [activeTile, setActiveTile] = useState(null);
 
   const sensors = useSensors(
@@ -56,17 +68,31 @@ export default function GameBoard() {
     if (!res.ok && res.error) {
       showToast(res.error, 'warn');
       sounds.error();
-      return;
+      return false;
     }
     sound();
+    return true;
   };
 
-  // 雙擊手牌:自動排到「建立新牌組」區
+  // 雙擊手牌:自己回合排到「建立新牌組」區;非自己回合放進暫放區
   const playTileToNewSet = (tileId) => {
-    if (!myTurn) return;
+    if (!myTurn) {
+      stageTile(tileId);
+      sounds.place();
+      return;
+    }
     const layout = currentLayout();
     layout.push({ id: `n-${Date.now().toString(36)}`, tileIds: [tileId] });
     sendLayout(layout);
+  };
+
+  // 暫放區整組送上桌面(輪到自己時)
+  const submitStagedSet = async (stagedSet) => {
+    if (!myTurn) return;
+    const layout = currentLayout();
+    layout.push({ id: `n-${Date.now().toString(36)}`, tileIds: [...stagedSet.tileIds] });
+    const ok = await sendLayout(layout, sounds.validSet);
+    if (ok) clearStagingSet(stagedSet.id);
   };
 
   // 雙擊桌面牌組:收回這回合放進該組的牌
@@ -89,14 +115,28 @@ export default function GameBoard() {
   const onDragEnd = ({ active, over }) => {
     setActiveTile(null);
     if (!over) return;
-    const { tileId, from } = active.data.current ?? {};
+    const { tileId, from, setId: srcSetId } = active.data.current ?? {};
     const target = over.data.current ?? {};
     if (!tileId) return;
+    // 手牌與暫放區的磚,對伺服器而言都還在手上
+    const fromHandish = from === 'hand' || from === 'staging';
 
-    // 手牌內排序(任何時候可做)
-    if (from === 'hand' && (target.type === 'handpos' || target.type === 'rack')) {
-      const toIndex = target.type === 'handpos' ? target.index : hand.length;
-      moveHandTile(tileId, toIndex);
+    // 手牌內排序 / 暫放區收回手牌(任何時候可做)
+    if (fromHandish && (target.type === 'handpos' || target.type === 'rack')) {
+      if (from === 'staging') unstageTile(tileId);
+      moveHandTile(tileId, target.type === 'handpos' ? target.beforeTileId : null);
+      return;
+    }
+
+    // 拖進暫放區(任何時候可做,僅限自己手上的磚)
+    if (target.type === 'staging' || target.type === 'stagingnew') {
+      if (!fromHandish) {
+        showToast('桌面的牌不能放進暫放區', 'warn');
+        return;
+      }
+      if (from === 'staging' && target.type === 'staging' && target.setId === srcSetId) return;
+      stageTile(tileId, target.type === 'staging' ? target.setId : null);
+      sounds.place();
       return;
     }
 
@@ -125,7 +165,7 @@ export default function GameBoard() {
 
     // 拖到桌面空白處(table)與拖到「建立新牌組」區(newset)等價
     if (target.type === 'set' || target.type === 'newset' || target.type === 'table') {
-      if (from !== 'hand') {
+      if (!fromHandish) {
         if (from === target.setId) return; // 同組不動
         removeFromSets();
       }
@@ -143,12 +183,13 @@ export default function GameBoard() {
       } else {
         layout.push({ id: `n-${Date.now().toString(36)}`, tileIds: [tileId] });
       }
+      if (from === 'staging') unstageTile(tileId);
       sendLayout(layout, sound);
       return;
     }
 
     // 從桌面收回本回合放的磚
-    if ((target.type === 'rack' || target.type === 'handpos') && from !== 'hand') {
+    if ((target.type === 'rack' || target.type === 'handpos') && !fromHandish) {
       if (!placedSet.has(tileId)) {
         showToast('只能收回本回合放上的磚', 'warn');
         return;
@@ -170,8 +211,9 @@ export default function GameBoard() {
         <PlayerBar />
         <TableArea myTurn={myTurn} placedSet={placedSet} onSetDoubleClick={recallSet} />
         <TurnControls myTurn={myTurn} />
+        <StagingArea myTurn={myTurn} onSubmitSet={submitStagedSet} />
         <Rack myTurn={myTurn} onTileDoubleClick={playTileToNewSet} />
-        <Chat />
+        <Chat floatingToggle={false} />
         <ResultModal />
         {turnFlash && <div className="turn-banner">🎯 輪到你了!</div>}
         {drewOverlay && (

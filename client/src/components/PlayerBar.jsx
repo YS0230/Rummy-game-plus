@@ -4,12 +4,13 @@ import { req } from '../socket.js';
 import RulesHelp from './RulesHelp.jsx';
 
 export default function PlayerBar() {
-  const { game, playerId, room } = useStore();
+  const { game, playerId, room, chat, chatOpen, chatSeen, setChatOpen } = useStore();
+  const unread = Math.max(0, chat.length - chatSeen);
 
   const leaveGame = async () => {
     if (!window.confirm('確定要離開遊戲嗎?這將視為棄局,無法回來。')) return;
     await req('room:leave');
-    useStore.setState({ room: null, chat: [], game: null, hand: [], results: null });
+    useStore.setState({ room: null, chat: [], game: null, hand: [], results: null, staging: [] });
   };
 
   return (
@@ -18,6 +19,12 @@ export default function PlayerBar() {
         <span className="room-tag">{room?.name}</span>
         <span className="muted">牌堆 {game.poolCount}</span>
         <RulesHelp />
+        {!chatOpen && (
+          <button className="small chat-bar-btn" onClick={() => setChatOpen(true)}>
+            💬 聊天
+            {unread > 0 && <span className="chat-badge">{unread > 99 ? '99+' : unread}</span>}
+          </button>
+        )}
         <button className="small danger" onClick={leaveGame}>
           🚪 離開遊戲
         </button>
