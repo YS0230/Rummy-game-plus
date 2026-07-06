@@ -1,4 +1,4 @@
-# 拉密 Rummikub 線上多人對戰
+# 拉密 Rummikub plus 線上多人對戰
 
 多人連線 Rummikub(106 磚:1–13 × 4 色 × 2 副 + 2 鬼牌,2–4 人)。
 
