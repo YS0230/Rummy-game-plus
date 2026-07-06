@@ -2,6 +2,7 @@ import React from 'react';
 import { useStore } from '../store.js';
 import { req } from '../socket.js';
 import RulesHelp from './RulesHelp.jsx';
+import BgmToggle from './BgmToggle.jsx';
 
 export default function PlayerBar() {
   const { game, playerId, room, chat, chatOpen, chatSeen, setChatOpen } = useStore();
@@ -19,6 +20,7 @@ export default function PlayerBar() {
         <span className="room-tag">{room?.name}</span>
         <span className="muted">牌堆 {game.poolCount}</span>
         <RulesHelp />
+        <BgmToggle />
         {!chatOpen && (
           <button className="small chat-bar-btn" onClick={() => setChatOpen(true)}>
             💬

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import {
   DndContext,
   DragOverlay,
@@ -20,6 +20,7 @@ import PlayerBar from '../components/PlayerBar.jsx';
 import TurnControls from '../components/TurnControls.jsx';
 import Chat from '../components/Chat.jsx';
 import ResultModal from '../components/ResultModal.jsx';
+import { startBgmIfEnabled, pauseBgm } from '../bgm.js';
 
 export default function GameBoard() {
   const {
@@ -36,6 +37,11 @@ export default function GameBoard() {
   } = useStore();
   const [activeTile, setActiveTile] = useState(null);
   const [stagingOpen, setStagingOpen] = useState(true);
+
+  useEffect(() => {
+    startBgmIfEnabled();
+    return () => pauseBgm();
+  }, []);
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 4 } }),
