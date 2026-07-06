@@ -1063,4 +1063,8 @@ select {
     max-width: none;
     flex: 1;
   }
+  .checkbox {
+    flex-basis: 100%;
+    min-width: 0;
+  }
 }
