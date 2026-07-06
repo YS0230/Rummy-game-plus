@@ -45,8 +45,7 @@ function StagedSet({ set, tiles, myTurn, onSubmit, onTileDoubleClick }) {
       {myTurn && (
         <button
           className="small primary staging-send"
-          disabled={!valid}
-          title={valid ? '把這組牌放上桌面' : '還不是合法牌組'}
+          title={valid ? '把這組牌放上桌面' : '尚未組成合法牌組,仍可送出,出牌時才會驗證'}
           onClick={() => onSubmit(set)}
         >
           送出
