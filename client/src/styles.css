@@ -116,7 +116,7 @@ select {
   color: #555;
   margin-right: 6px;
 }
-.lobby input {
+.lobby input:not([type='checkbox']) {
   width: 100%;
   max-width: 320px;
 }
@@ -1059,12 +1059,8 @@ select {
   .lobby {
     padding: 20px 12px;
   }
-  .lobby input {
+  .lobby input:not([type='checkbox']) {
     max-width: none;
     flex: 1;
-  }
-  .checkbox {
-    flex-basis: 100%;
-    min-width: 0;
   }
 }
