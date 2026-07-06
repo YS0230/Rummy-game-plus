@@ -26,7 +26,7 @@ export default function TurnControls({ myTurn }) {
           出牌{placedCount > 0 ? `(${placedCount} 張)` : ''}
         </button>
         <button onClick={() => act('game:draw')}>抽牌並跳過</button>
-        <button className="small" disabled={placedCount === 0} onClick={() => act('game:reset')}>
+        <button className="small" onClick={() => act('game:reset')}>
           還原
         </button>
       </div>
