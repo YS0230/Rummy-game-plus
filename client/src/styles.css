@@ -371,6 +371,7 @@ select {
   overflow-y: auto; /* 縮到 MIN_TABLE_SCALE 仍放不下時的後備捲動 */
   overflow-x: hidden;
   scrollbar-gutter: stable; /* 捲軸出現/消失不改變內容寬度,避免整片重排 */
+  touch-action: pan-y; /* 保留縮排後備垂直捲動,同時擋掉左右滑動觸發瀏覽器上一頁/下一頁 */
   box-shadow: inset 0 0 40px rgba(0, 0, 0, 0.25);
   /* 桌面內牌面/間距的基準尺寸,--ts 縮放時等比縮小 */
   --t-w: 40px;
@@ -571,6 +572,7 @@ select {
   border-radius: 12px;
   padding: 6px 10px;
   min-height: 52px;
+  touch-action: none; /* 同 .rack,擋掉滑動手勢 */
 }
 .staging-label {
   color: var(--ivory);
@@ -662,6 +664,7 @@ select {
   border-radius: 12px;
   padding: 8px;
   box-shadow: inset 0 2px 8px rgba(0, 0, 0, 0.4);
+  touch-action: none; /* 手牌區不需捲動,整區擋掉滑動手勢避免觸發上一頁/下拉重新整理 */
 }
 .rack-over {
   outline: 2px solid #ffd75e;
