@@ -17,16 +17,20 @@ export default function TurnControls({ myTurn }) {
     }
   };
 
-  if (!myTurn) return null;
-
   return (
     <div className="turn-controls">
       <div className="turn-buttons">
-        <button className="primary" disabled={placedCount === 0} onClick={() => act('game:endTurn')}>
-          出牌{placedCount > 0 ? `(${placedCount} 張)` : ''}
+        <button
+          className="primary"
+          disabled={!myTurn || placedCount === 0}
+          onClick={() => act('game:endTurn')}
+        >
+          出牌{myTurn && placedCount > 0 ? `(${placedCount} 張)` : ''}
         </button>
-        <button onClick={() => act('game:draw')}>抽牌並跳過</button>
-        <button className="small" onClick={() => act('game:reset')}>
+        <button disabled={!myTurn} onClick={() => act('game:draw')}>
+          抽牌並跳過
+        </button>
+        <button className="small" disabled={!myTurn} onClick={() => act('game:reset')}>
           還原
         </button>
       </div>

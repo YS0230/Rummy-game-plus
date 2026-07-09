@@ -240,7 +240,6 @@ export default function GameBoard() {
           <PlayerBar onFullscreen={toggleImmersive} />
         )}
         <TableArea myTurn={myTurn} placedSet={placedSet} onSetDoubleClick={recallSet} />
-        <TurnControls myTurn={myTurn} />
         <div className="rack-anchor">
           {stagingOpen && <StagingArea myTurn={myTurn} onSubmitSet={submitStagedSet} />}
           <Rack
@@ -250,6 +249,7 @@ export default function GameBoard() {
             onToggleStaging={() => setStagingOpen((o) => !o)}
           />
         </div>
+        <TurnControls myTurn={myTurn} />
         <Chat floatingToggle={false} />
         <ResultModal />
         {turnFlash && <div className="turn-banner">🎯 輪到你了!</div>}

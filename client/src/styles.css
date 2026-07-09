@@ -291,8 +291,8 @@ select {
   grid-template-areas:
     'bar bar'
     'table chat'
-    'controls chat'
-    'rack chat';
+    'rack chat'
+    'controls chat';
   height: 100%;
   gap: 10px;
   padding: 10px;
@@ -306,8 +306,8 @@ select {
   grid-template-rows: 1fr auto auto;
   grid-template-areas:
     'table chat'
-    'controls chat'
-    'rack chat';
+    'rack chat'
+    'controls chat';
 }
 .fs-exit {
   position: fixed;
@@ -978,16 +978,16 @@ select {
     grid-template-areas:
       'bar'
       'table'
-      'controls'
-      'rack';
+      'rack'
+      'controls';
     gap: 8px;
     padding: 8px 8px calc(8px + env(safe-area-inset-bottom));
   }
   .game-page.immersive {
     grid-template-areas:
       'table'
-      'controls'
-      'rack';
+      'rack'
+      'controls';
   }
   .game-page .chat {
     position: fixed;
