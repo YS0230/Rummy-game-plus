@@ -23,14 +23,8 @@ body,
     height: 100dvh;
   }
 }
-html {
-  /* Chrome 93+ 起 overscroll-behavior 必須設在根元素才會作用到視窗層級,
-     只寫在 body 擋不住左右滑動觸發上一頁/下一頁 */
-  overscroll-behavior: none;
-}
 body {
   overscroll-behavior: none; /* 拖曳時避免觸發下拉重新整理 */
-  touch-action: pan-y pinch-zoom; /* 全頁只允許垂直捲動,左右滑動不再啟動瀏覽器換頁手勢 */
   -webkit-tap-highlight-color: transparent;
 }
 .app {
