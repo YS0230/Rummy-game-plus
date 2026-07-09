@@ -4,7 +4,7 @@ import { req } from '../socket.js';
 import RulesHelp from './RulesHelp.jsx';
 import BgmToggle from './BgmToggle.jsx';
 
-export default function PlayerBar() {
+export default function PlayerBar({ onFullscreen }) {
   const { game, playerId, room, chat, chatOpen, chatSeen, setChatOpen } = useStore();
   const unread = Math.max(0, chat.length - chatSeen);
 
@@ -25,6 +25,11 @@ export default function PlayerBar() {
           <button className="small chat-bar-btn" onClick={() => setChatOpen(true)}>
             💬
             {unread > 0 && <span className="chat-badge">{unread > 99 ? '99+' : unread}</span>}
+          </button>
+        )}
+        {onFullscreen && (
+          <button className="small" title="全螢幕(隱藏頂部資訊列)" onClick={onFullscreen}>
+            ⛶
           </button>
         )}
         <button className="small danger" onClick={leaveGame}>

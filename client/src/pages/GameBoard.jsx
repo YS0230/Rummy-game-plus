@@ -37,10 +37,26 @@ export default function GameBoard() {
   } = useStore();
   const [activeTile, setActiveTile] = useState(null);
   const [stagingOpen, setStagingOpen] = useState(true);
+  const [immersive, setImmersive] = useState(false);
 
   useEffect(() => {
     startBgmIfEnabled();
     return () => pauseBgm();
+  }, []);
+
+  // 全螢幕模式:隱藏頂部玩家列並要求瀏覽器全螢幕;Esc 退出全螢幕時同步還原
+  const toggleImmersive = () => {
+    const next = !immersive;
+    setImmersive(next);
+    if (next) document.documentElement.requestFullscreen?.().catch(() => {});
+    else if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  };
+  useEffect(() => {
+    const onFsChange = () => {
+      if (!document.fullscreenElement) setImmersive(false);
+    };
+    document.addEventListener('fullscreenchange', onFsChange);
+    return () => document.removeEventListener('fullscreenchange', onFsChange);
   }, []);
 
   const sensors = useSensors(
@@ -215,17 +231,25 @@ export default function GameBoard() {
       onDragEnd={onDragEnd}
       onDragCancel={() => setActiveTile(null)}
     >
-      <div className="game-page">
-        <PlayerBar />
+      <div className={`game-page ${immersive ? 'immersive' : ''}`}>
+        {immersive ? (
+          <button className="small fs-exit" title="離開全螢幕" onClick={toggleImmersive}>
+            ⛶
+          </button>
+        ) : (
+          <PlayerBar onFullscreen={toggleImmersive} />
+        )}
         <TableArea myTurn={myTurn} placedSet={placedSet} onSetDoubleClick={recallSet} />
         <TurnControls myTurn={myTurn} />
-        {stagingOpen && <StagingArea myTurn={myTurn} onSubmitSet={submitStagedSet} />}
-        <Rack
-          myTurn={myTurn}
-          onTileDoubleClick={playTileToNewSet}
-          stagingOpen={stagingOpen}
-          onToggleStaging={() => setStagingOpen((o) => !o)}
-        />
+        <div className="rack-anchor">
+          {stagingOpen && <StagingArea myTurn={myTurn} onSubmitSet={submitStagedSet} />}
+          <Rack
+            myTurn={myTurn}
+            onTileDoubleClick={playTileToNewSet}
+            stagingOpen={stagingOpen}
+            onToggleStaging={() => setStagingOpen((o) => !o)}
+          />
+        </div>
         <Chat floatingToggle={false} />
         <ResultModal />
         {turnFlash && <div className="turn-banner">🎯 輪到你了!</div>}
