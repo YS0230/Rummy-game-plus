@@ -9,7 +9,7 @@ export default function Lobby() {
   const [roomName, setRoomName] = useState(randomRoomName());
   const [maxPlayers, setMaxPlayers] = useState(4);
   const [isPrivate, setIsPrivate] = useState(false);
-  const [turnSeconds, setTurnSeconds] = useState(60);
+  const [turnSeconds, setTurnSeconds] = useState(30);
   const [sortHint, setSortHint] = useState(true);
   const [code, setCode] = useState('');
 
