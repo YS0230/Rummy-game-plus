@@ -1,4 +1,5 @@
 import { Game } from '../game/Game.js';
+import { BotDriver } from '../game/BotDriver.js';
 
 export function registerHandlers(io, rooms) {
   const broadcastLobby = () => io.emit('lobby:list', rooms.lobbyList());
@@ -22,9 +23,13 @@ export function registerHandlers(io, rooms) {
     },
     isConnected: (playerId) =>
       !!room.players.find((x) => x.playerId === playerId)?.connected,
+    onTurn: (playerId) => room.botDriver?.onTurn(playerId),
     onGameOver: () => {
       room.status = 'waiting';
-      for (const p of room.players) p.ready = p.playerId === room.hostId;
+      // 電腦玩家恆為已準備,可直接再開一局
+      for (const p of room.players) p.ready = p.playerId === room.hostId || !!p.isBot;
+      room.botDriver?.dispose();
+      room.botDriver = null;
       broadcastRoom(room);
     },
   });
@@ -162,9 +167,36 @@ export function registerHandlers(io, rooms) {
           gameCallbacks(room),
           { turnSeconds: room.turnSeconds }
         );
+        const bots = room.players.filter((p) => p.isBot);
+        if (bots.length > 0) {
+          const levels = new Map(bots.map((p) => [p.playerId, p.botLevel]));
+          room.botDriver = new BotDriver(room.game, (pid) => levels.get(pid) ?? null);
+        }
         systemChat(room, '遊戲開始!');
         broadcastRoom(room);
         room.game.start();
+        ack?.({ ok: true });
+      })
+    );
+
+    socket.on(
+      'room:addBot',
+      withRoom((room, payload, ack) => {
+        if (playerId !== room.hostId) throw new Error('只有房主可以加入電腦玩家');
+        const bot = rooms.addBot(room, payload.level);
+        systemChat(room, `${bot.name} 加入房間`);
+        broadcastRoom(room);
+        ack?.({ ok: true });
+      })
+    );
+
+    socket.on(
+      'room:removeBot',
+      withRoom((room, payload, ack) => {
+        if (playerId !== room.hostId) throw new Error('只有房主可以移除電腦玩家');
+        const bot = rooms.removeBot(room, String(payload.playerId || ''));
+        systemChat(room, `${bot.name} 已被移除`);
+        broadcastRoom(room);
         ack?.({ ok: true });
       })
     );

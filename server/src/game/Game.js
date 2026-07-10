@@ -12,7 +12,7 @@ const DISCONNECT_SKIP_MS = 3000;
 
 /**
  * 一局 Rummikub。
- * callbacks: { broadcast(event,data), toPlayer(playerId,event,data), isConnected(playerId), onGameOver(results) }
+ * callbacks: { broadcast(event,data), toPlayer(playerId,event,data), isConnected(playerId), onGameOver(results), onTurn?(playerId) }
  * options: { turnSeconds } 每回合秒數(房間建立時設定,預設 60)
  */
 export class Game {
@@ -126,6 +126,7 @@ export class Game {
       }, DISCONNECT_SKIP_MS);
     }
     this.broadcastState();
+    this.cb.onTurn?.(this.currentPlayerId);
   }
 
   clearTimers() {
@@ -183,6 +184,7 @@ export class Game {
     for (const t of rackStart) allowed.add(t.id);
 
     const seen = new Set();
+    const usedSetIds = new Set();
     const newTable = [];
     for (const set of layout) {
       if (!set || !Array.isArray(set.tileIds) || set.tileIds.length === 0) continue;
@@ -194,7 +196,12 @@ export class Game {
         seen.add(id);
         tiles.push(this.tileById.get(id));
       }
-      newTable.push({ id: String(set.id ?? `s-${newTable.length}`), tiles });
+      // 牌組 id 去重:重複 id 會讓前端「以 id 找牌組」的拖曳邏輯錯亂
+      const base = String(set.id ?? `s-${newTable.length}`);
+      let sid = base;
+      for (let n = 1; usedSetIds.has(sid); n++) sid = `${base}~${n}`;
+      usedSetIds.add(sid);
+      newTable.push({ id: sid, tiles });
     }
     // 桌面既有磚不得收回
     for (const id of this.tableIds(this.snapshotTable)) {

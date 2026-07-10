@@ -2,6 +2,9 @@ import { customAlphabet } from 'nanoid';
 
 const roomId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10);
 const roomCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 6);
+const botId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 8);
+
+const BOT_NAMES = ['電腦小磚', '電腦阿密', '電腦鬼牌', '電腦拉米'];
 
 const EMPTY_DESTROY_MS = 5 * 60 * 1000; // 全員斷線 5 分鐘銷毀
 const MAX_CHAT = 100;
@@ -25,6 +28,7 @@ export class RoomManager {
       status: 'waiting',
       players: [],
       game: null,
+      botDriver: null,
       chat: [],
       destroyTimer: null,
     };
@@ -48,6 +52,32 @@ export class RoomManager {
     this.playerRoom.set(playerId, room.id);
     this.cancelDestroy(room);
     return player;
+  }
+
+  /** 房主加入電腦玩家:恆為已準備、視為在線(無 socket) */
+  addBot(room, level) {
+    if (room.status !== 'waiting') throw new Error('遊戲進行中,無法加入');
+    if (room.players.length >= room.maxPlayers) throw new Error('房間已滿');
+    const base = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
+    const bot = {
+      playerId: `bot-${botId()}`,
+      name: this.uniqueName(room, base),
+      socketId: null,
+      connected: true,
+      ready: true,
+      isBot: true,
+      botLevel: level === 'hard' ? 'hard' : 'easy',
+    };
+    // 不寫入 playerRoom:那是給人類 socket 重連 roomOf 查詢用的
+    room.players.push(bot);
+    return bot;
+  }
+
+  removeBot(room, botPlayerId) {
+    if (room.status !== 'waiting') throw new Error('遊戲進行中,無法移除');
+    const idx = room.players.findIndex((p) => p.playerId === botPlayerId && p.isBot);
+    if (idx === -1) throw new Error('找不到此電腦玩家');
+    return room.players.splice(idx, 1)[0];
   }
 
   /** 同房間重名時自動補上 #隨機數字(例:憤怒的馬鈴薯#812) */
@@ -85,24 +115,35 @@ export class RoomManager {
       return;
     }
     if (room.hostId === playerId) {
-      room.hostId = room.players[0].playerId;
-      room.players[0].ready = true;
+      // 房主只能由真人繼任;只剩電腦玩家時直接銷毀房間
+      const nextHost = room.players.find((p) => !p.isBot);
+      if (!nextHost) {
+        this.destroyRoom(room);
+        return;
+      }
+      room.hostId = nextHost.playerId;
+      nextHost.ready = true;
     }
   }
 
   destroyRoom(room) {
+    if (room.botDriver) {
+      room.botDriver.dispose();
+      room.botDriver = null;
+    }
     if (room.game) room.game.dispose();
     this.cancelDestroy(room);
     for (const p of room.players) this.playerRoom.delete(p.playerId);
     this.rooms.delete(room.id);
   }
 
-  /** 全員斷線時排程銷毀 */
+  /** 全員斷線時排程銷毀(電腦玩家恆為 connected,不列入判斷) */
   scheduleDestroyIfAbandoned(room, onDestroy) {
-    if (room.players.some((p) => p.connected)) return;
+    const anyHuman = (r) => r.players.some((p) => p.connected && !p.isBot);
+    if (anyHuman(room)) return;
     this.cancelDestroy(room);
     room.destroyTimer = setTimeout(() => {
-      if (!room.players.some((p) => p.connected)) {
+      if (!anyHuman(room)) {
         this.destroyRoom(room);
         onDestroy();
       }
@@ -149,6 +190,8 @@ export class RoomManager {
         name: p.name,
         connected: p.connected,
         ready: p.ready,
+        isBot: !!p.isBot,
+        botLevel: p.botLevel ?? null,
       })),
     };
   }

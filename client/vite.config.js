@@ -8,7 +8,7 @@ export default defineConfig({
     fs: { allow: ['..'] },
     proxy: {
       '/socket.io': {
-        target: 'http://localhost:3001',
+        target: `http://localhost:${process.env.API_PORT || 3001}`,
         ws: true,
       },
     },

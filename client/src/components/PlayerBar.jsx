@@ -1,12 +1,19 @@
 import React from 'react';
 import { useStore } from '../store.js';
 import { req } from '../socket.js';
+import { useSecretTaps } from '../useSecretTaps.js';
 import RulesHelp from './RulesHelp.jsx';
 import BgmToggle from './BgmToggle.jsx';
 
 export default function PlayerBar({ onFullscreen }) {
-  const { game, playerId, room, chat, chatOpen, chatSeen, setChatOpen } = useStore();
+  const { game, playerId, room, chat, chatOpen, chatSeen, setChatOpen, showToast } = useStore();
   const unread = Math.max(0, chat.length - chatSeen);
+
+  // 隱藏功能:2 秒內連點房間名稱 5 次,切換 AI 代出牌
+  const onRoomTag = useSecretTaps(() => {
+    const on = useStore.getState().toggleAiUnlocked();
+    showToast(on ? 'AI 代出牌已開啟' : 'AI 代出牌已隱藏');
+  });
 
   const leaveGame = async () => {
     if (!window.confirm('確定要離開遊戲嗎?這將視為棄局,無法回來。')) return;
@@ -17,7 +24,7 @@ export default function PlayerBar({ onFullscreen }) {
   return (
     <div className="player-bar">
       <div className="player-bar-left">
-        <span className="room-tag">{room?.name}</span>
+        <span className="room-tag" onClick={onRoomTag}>{room?.name}</span>
         <span className="muted">牌堆 {game.poolCount}</span>
         <RulesHelp />
         <BgmToggle />
@@ -49,6 +56,7 @@ export default function PlayerBar({ onFullscreen }) {
               .join(' ')}
           >
             <span className="pb-name">
+              {room?.players?.find((x) => x.playerId === p.playerId)?.isBot && '🤖 '}
               {p.name}
               {p.playerId === playerId && '(你)'}
             </span>

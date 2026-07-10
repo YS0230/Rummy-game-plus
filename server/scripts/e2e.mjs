@@ -2,7 +2,7 @@
 // 用法:先啟動伺服器,再 node scripts/e2e.mjs
 import { io } from 'socket.io-client';
 
-const URL = 'http://localhost:3001';
+const URL = process.env.URL || 'http://localhost:3001';
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 let failed = 0;
 const check = (cond, label) => {

@@ -1,10 +1,17 @@
 import React from 'react';
 import { useStore } from '../store.js';
 import { req } from '../socket.js';
+import { useSecretTaps } from '../useSecretTaps.js';
 import Chat from '../components/Chat.jsx';
 
 export default function Room() {
   const { room, playerId, showToast } = useStore();
+
+  // 隱藏功能:2 秒內連點房間名稱 5 次,切換 AI 代出牌
+  const onRoomName = useSecretTaps(() => {
+    const on = useStore.getState().toggleAiUnlocked();
+    showToast(on ? 'AI 代出牌已開啟' : 'AI 代出牌已隱藏');
+  });
   const me = room.players.find((p) => p.playerId === playerId);
   const isHost = room.hostId === playerId;
   const allReady = room.players.every((p) => p.ready && p.connected);
@@ -13,6 +20,16 @@ export default function Room() {
 
   const start = async () => {
     const res = await req('room:start');
+    if (!res.ok) showToast(res.error, 'warn');
+  };
+
+  const addBot = async (level) => {
+    const res = await req('room:addBot', { level });
+    if (!res.ok) showToast(res.error, 'warn');
+  };
+
+  const removeBot = async (botPlayerId) => {
+    const res = await req('room:removeBot', { playerId: botPlayerId });
     if (!res.ok) showToast(res.error, 'warn');
   };
 
@@ -26,7 +43,7 @@ export default function Room() {
       <div className="room-main">
         <div className="card">
           <div className="room-head">
-            <h1>{room.name}</h1>
+            <h1 onClick={onRoomName}>{room.name}</h1>
             <div className="room-code">
               房間代碼:<b>{room.code}</b>
               <button
@@ -50,18 +67,42 @@ export default function Room() {
             {room.players.map((p) => (
               <li key={p.playerId} className={p.connected ? '' : 'offline'}>
                 <span className="player-name">
+                  {p.isBot && '🤖 '}
                   {p.name}
                   {p.playerId === room.hostId && ' 👑'}
                   {p.playerId === playerId && '(你)'}
+                  {p.isBot && (
+                    <span className="muted">({p.botLevel === 'hard' ? '困難' : '簡單'})</span>
+                  )}
                 </span>
                 <span className={`badge ${p.ready ? 'ready' : ''}`}>
                   {!p.connected ? '斷線' : p.ready ? '已準備' : '未準備'}
                 </span>
+                {isHost && p.isBot && (
+                  <button
+                    className="small danger"
+                    title="移除電腦玩家"
+                    onClick={() => removeBot(p.playerId)}
+                  >
+                    ✕
+                  </button>
+                )}
               </li>
             ))}
             {Array.from({ length: room.maxPlayers - room.players.length }).map((_, i) => (
               <li key={`empty-${i}`} className="empty-seat">
-                等待玩家加入…
+                {isHost && i === 0 ? (
+                  <>
+                    <button className="small" onClick={() => addBot('easy')}>
+                      ➕ 電腦(簡單)
+                    </button>
+                    <button className="small" onClick={() => addBot('hard')}>
+                      ➕ 電腦(困難)
+                    </button>
+                  </>
+                ) : (
+                  '等待玩家加入…'
+                )}
               </li>
             ))}
           </ul>

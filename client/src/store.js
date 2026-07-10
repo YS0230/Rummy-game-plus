@@ -44,6 +44,8 @@ export const useStore = create((set, get) => ({
   staging: [], // 牌組暫放區 [{ id, tileIds }],純本地狀態
   chatOpen: window.matchMedia('(min-width: 901px)').matches, // 聊天室展開
   chatSeen: 0, // 已讀訊息數(未讀徽章用)
+  aiUnlocked: localStorage.getItem('rummy-ai-unlocked') === '1', // 隱藏功能:AI 代出牌(連點房名 5 次切換)
+  aiAuto: false, // AI 自動模式:輪到自己就自動代打
 
   flagInvalidSets: (ids) => {
     set({ invalidSetIds: ids });
@@ -57,6 +59,15 @@ export const useStore = create((set, get) => ({
 
   setChatOpen: (open) =>
     set(open ? { chatOpen: true, chatSeen: get().chat.length } : { chatOpen: false }),
+
+  /** 切換 AI 代出牌顯示;隱藏時一併關閉自動模式。回傳新狀態 */
+  toggleAiUnlocked: () => {
+    const on = !get().aiUnlocked;
+    localStorage.setItem('rummy-ai-unlocked', on ? '1' : '0');
+    set(on ? { aiUnlocked: true } : { aiUnlocked: false, aiAuto: false });
+    return on;
+  },
+  setAiAuto: (aiAuto) => set({ aiAuto }),
 
   showToast: (text, kind = 'info') => {
     const id = `${Date.now()}-${Math.random()}`;
