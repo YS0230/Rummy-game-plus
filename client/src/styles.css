@@ -741,6 +741,28 @@ select {
   font-weight: 700;
   background: #fdf3d0;
 }
+.result-table td.result-tiles-cell {
+  padding: 4px 12px 10px;
+}
+.result-tiles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 3px;
+  justify-content: flex-start;
+}
+.result-tile {
+  width: 22px;
+  height: 30px;
+  border-radius: 4px;
+  cursor: default;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+.result-tile .tile-num {
+  font-size: 13px;
+}
+.result-tile.tile-joker .tile-num {
+  font-size: 15px;
+}
 .toast-stack {
   position: fixed;
   top: 14px;

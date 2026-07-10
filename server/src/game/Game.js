@@ -330,13 +330,21 @@ export class Game {
     this.winner = winnerId;
     this.clearTimers();
     this.turnDeadline = null;
+    const colorOrder = ['red', 'blue', 'orange', 'black'];
     const results = this.order.map((pid) => {
       const penalty = pid === winnerId ? 0 : rackPenalty(this.racks.get(pid));
+      const tiles = [...this.racks.get(pid)].sort((a, b) => {
+        if (a.isJoker !== b.isJoker) return a.isJoker ? 1 : -1;
+        if (a.color !== b.color)
+          return colorOrder.indexOf(a.color) - colorOrder.indexOf(b.color);
+        return a.num - b.num;
+      });
       return {
         playerId: pid,
         name: this.names.get(pid),
         isWinner: pid === winnerId,
         remaining: this.racks.get(pid).length,
+        tiles,
         penalty,
       };
     });

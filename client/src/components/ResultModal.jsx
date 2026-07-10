@@ -25,15 +25,35 @@ export default function ResultModal() {
             {[...results]
               .sort((a, b) => b.score - a.score)
               .map((r) => (
-                <tr key={r.playerId} className={r.isWinner ? 'winner' : ''}>
-                  <td>
-                    {r.isWinner && '👑 '}
-                    {r.name}
-                  </td>
-                  <td>{r.remaining}</td>
-                  <td>{r.penalty}</td>
-                  <td>{r.score > 0 ? `+${r.score}` : r.score}</td>
-                </tr>
+                <React.Fragment key={r.playerId}>
+                  <tr className={r.isWinner ? 'winner' : ''}>
+                    <td>
+                      {r.isWinner && '👑 '}
+                      {r.name}
+                    </td>
+                    <td>{r.remaining}</td>
+                    <td>{r.penalty}</td>
+                    <td>{r.score > 0 ? `+${r.score}` : r.score}</td>
+                  </tr>
+                  {r.tiles?.length > 0 && (
+                    <tr className={r.isWinner ? 'winner' : ''}>
+                      <td colSpan={4} className="result-tiles-cell">
+                        <div className="result-tiles">
+                          {r.tiles.map((t) => (
+                            <div
+                              key={t.id}
+                              className={`tile result-tile tile-${t.isJoker ? 'joker' : t.color}`}
+                            >
+                              <span className="tile-num">
+                                {t.isJoker ? '☺' : t.num}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </td>
+                    </tr>
+                  )}
+                </React.Fragment>
               ))}
           </tbody>
         </table>
