@@ -55,7 +55,7 @@ export class RoomManager {
   }
 
   /** 房主加入電腦玩家:恆為已準備、視為在線(無 socket) */
-  addBot(room, level) {
+  addBot(room) {
     if (room.status !== 'waiting') throw new Error('遊戲進行中,無法加入');
     if (room.players.length >= room.maxPlayers) throw new Error('房間已滿');
     const base = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
@@ -66,7 +66,7 @@ export class RoomManager {
       connected: true,
       ready: true,
       isBot: true,
-      botLevel: level === 'hard' ? 'hard' : 'easy',
+      botLevel: 'hard',
     };
     // 不寫入 playerRoom:那是給人類 socket 重連 roomOf 查詢用的
     room.players.push(bot);

@@ -23,8 +23,8 @@ export default function Room() {
     if (!res.ok) showToast(res.error, 'warn');
   };
 
-  const addBot = async (level) => {
-    const res = await req('room:addBot', { level });
+  const addBot = async () => {
+    const res = await req('room:addBot');
     if (!res.ok) showToast(res.error, 'warn');
   };
 
@@ -71,9 +71,6 @@ export default function Room() {
                   {p.name}
                   {p.playerId === room.hostId && ' 👑'}
                   {p.playerId === playerId && '(你)'}
-                  {p.isBot && (
-                    <span className="muted">({p.botLevel === 'hard' ? '困難' : '簡單'})</span>
-                  )}
                 </span>
                 <span className={`badge ${p.ready ? 'ready' : ''}`}>
                   {!p.connected ? '斷線' : p.ready ? '已準備' : '未準備'}
@@ -92,14 +89,9 @@ export default function Room() {
             {Array.from({ length: room.maxPlayers - room.players.length }).map((_, i) => (
               <li key={`empty-${i}`} className="empty-seat">
                 {isHost && i === 0 ? (
-                  <>
-                    <button className="small" onClick={() => addBot('easy')}>
-                      ➕ 電腦(簡單)
-                    </button>
-                    <button className="small" onClick={() => addBot('hard')}>
-                      ➕ 電腦(困難)
-                    </button>
-                  </>
+                  <button className="small" onClick={() => addBot()}>
+                    ➕ 電腦
+                  </button>
                 ) : (
                   '等待玩家加入…'
                 )}

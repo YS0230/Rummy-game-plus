@@ -183,7 +183,7 @@ export function registerHandlers(io, rooms) {
       'room:addBot',
       withRoom((room, payload, ack) => {
         if (playerId !== room.hostId) throw new Error('只有房主可以加入電腦玩家');
-        const bot = rooms.addBot(room, payload.level);
+        const bot = rooms.addBot(room);
         systemChat(room, `${bot.name} 加入房間`);
         broadcastRoom(room);
         ack?.({ ok: true });

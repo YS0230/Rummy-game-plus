@@ -32,14 +32,14 @@ A.on('room:update', (r) => (roomState = r));
 const notHostErr = await req(A, 'room:removeBot', { playerId: 'nope' });
 check(!notHostErr.ok, '移除不存在的 bot 回錯誤');
 
-check((await req(A, 'room:addBot', { level: 'easy' })).ok, '加入簡單 bot');
-check((await req(A, 'room:addBot', { level: 'hard' })).ok, '加入困難 bot');
+check((await req(A, 'room:addBot')).ok, '加入電腦玩家');
+check((await req(A, 'room:addBot')).ok, '加入電腦玩家');
 await sleep(200);
 const bots = roomState.players.filter((p) => p.isBot);
 check(bots.length === 2, 'room:update 帶出 2 個 bot');
 check(bots.every((p) => p.ready && p.connected), 'bot 恆為已準備且在線');
-check(bots.some((p) => p.botLevel === 'easy') && bots.some((p) => p.botLevel === 'hard'), 'botLevel 正確');
-const full = await req(A, 'room:addBot', { level: 'easy' });
+check(bots.every((p) => p.botLevel === 'hard'), 'botLevel 恆為 hard');
+const full = await req(A, 'room:addBot');
 check(!full.ok && /已滿/.test(full.error), '滿員時無法再加 bot');
 
 check((await req(A, 'room:removeBot', { playerId: bots[0].playerId })).ok, '移除 bot');

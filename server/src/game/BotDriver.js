@@ -9,7 +9,7 @@ const BOT_DELAY_MS = 1200; // 假裝思考;需小於最短回合秒數(15s)
  * 最壞情況由 Game 的回合計時器 autoPass 兜底,bot 永遠不會卡住回合。
  */
 export class BotDriver {
-  /** botLevelOf(playerId) -> 'easy' | 'hard' | null(非 bot) */
+  /** botLevelOf(playerId) -> 'hard' | null(非 bot) */
   constructor(game, botLevelOf, { delayMs = BOT_DELAY_MS, stepMs = null } = {}) {
     this.game = game;
     this.botLevelOf = botLevelOf;
