@@ -305,6 +305,44 @@ function tryBorrowForPair(sets, rackLeft, idGen) {
   return null;
 }
 
+/**
+ * Pass 3c:鬼牌替換 — 用手牌實體磚換出桌面牌組中的鬼牌。
+ * 換下的鬼牌不能回手牌(守恆檢查會擋),必須同回合放回桌面:
+ * (a) 與手牌兩張組成新牌組(多出兩張,優先),或 (b) 接到任一牌組頭尾。
+ * 兩者都做不到就不換。成功時回傳更新後的 rackLeft,否則 null。
+ */
+function tryJokerSwap(sets, rackLeft, idGen) {
+  for (const s of sets) {
+    const ji = s.tiles.findIndex((t) => t.isJoker);
+    if (ji === -1) continue;
+    const jokerTile = s.tiles[ji];
+    for (const t of rackLeft) {
+      if (t.isJoker) continue;
+      const replaced = s.tiles.map((x, i) => (i === ji ? t : x));
+      if (!isValidSet(replaced)) continue;
+      const rest = rackLeft.filter((x) => x.id !== t.id && !x.isJoker);
+      // (a) 鬼牌 + 手牌兩張組新牌組
+      for (let i = 0; i < rest.length; i++) {
+        for (let j = i + 1; j < rest.length; j++) {
+          if (!isValidSet([rest[i], rest[j], jokerTile])) continue;
+          s.tiles = replaced;
+          sets.push({ id: idGen(), tiles: [rest[i], rest[j], jokerTile] });
+          return removeById(rackLeft, [t.id, rest[i].id, rest[j].id]);
+        }
+      }
+      // (b) 鬼牌接到任一牌組(含被換出的那組本身)
+      for (const target of sets) {
+        const base = target === s ? replaced : target.tiles;
+        if (!isValidSet([...base, jokerTile])) continue;
+        s.tiles = replaced;
+        target.tiles = [...base, jokerTile];
+        return removeById(rackLeft, [t.id]);
+      }
+    }
+  }
+  return null;
+}
+
 /** 最終自檢:整桌合法 + 守恆(桌面原磚全在、新增磚皆來自手牌、無重複)。回傳 placedIds 或 null */
 function selfCheck(sets, originalTable, rack) {
   if (!validateTable(sets)) return null;
@@ -403,14 +441,24 @@ export function solve({ rack, table = [], hasMelded = false }, options = {}) {
     return { sets: toLayout(work), placedTileIds: placed, score };
   }
 
+  // Pass 2 前先做鬼牌替換:替換磚往往同時是可延伸磚(如 10,J,12 手上有 11),
+  // 先跑延伸會把替換磚吃掉,鬼牌就永遠換不出來
+  for (let i = 0; i < maxRearrange; i++) {
+    const after = tryJokerSwap(work, rackLeft, idGen);
+    if (!after) break;
+    rackLeft = after;
+  }
+
   // Pass 2:延伸既有牌組
   rackLeft = extendSets(work, rackLeft);
   const checkpoint = { sets: cloneSets(work) };
 
-  // Pass 3:有限重排(切入 / 借牌),每次成功後回跑 Pass 2
+  // Pass 3:有限重排(切入 / 借牌 / 鬼牌替換),每次成功後回跑 Pass 2
   for (let i = 0; i < maxRearrange; i++) {
-    const afterSplit = trySplitInsert(work, rackLeft, idGen);
-    const after = afterSplit ?? tryBorrowForPair(work, rackLeft, idGen);
+    const after =
+      trySplitInsert(work, rackLeft, idGen) ??
+      tryBorrowForPair(work, rackLeft, idGen) ??
+      tryJokerSwap(work, rackLeft, idGen);
     if (!after) break;
     rackLeft = extendSets(work, after);
   }

@@ -165,6 +165,38 @@ test('已首攤:從 4 張群組借牌湊手牌 pair', () => {
   assert.equal(sets.length, 2, '借出 red9 後拆成群組 3 張 + 順子 7,8,9');
 });
 
+test('已首攤:手牌實體磚換出桌面順子中的鬼牌,鬼牌接回桌面', () => {
+  // 桌面 red10 J red12,手上有 red11 → 換出鬼牌,鬼牌接回順子頭尾
+  const table = [{ id: 't1', tiles: [pick('red', 10), joker(0), pick('red', 12)] }];
+  const rack = [pick('red', 11), pick('blue', 2)];
+  const r = solve({ rack, table, hasMelded: true });
+  assert.ok(r, '鬼牌牌組可被重組');
+  assert.deepEqual(r.placedTileIds, [pick('red', 11).id]);
+  const sets = verifyResult(r, { rack, table, hasMelded: true });
+  const jokerStillOnTable = sets.some((s) => s.tiles.some((t) => t.isJoker));
+  assert.ok(jokerStillOnTable, '鬼牌不得收回手牌');
+});
+
+test('已首攤:換出的鬼牌與手牌兩張組成新牌組', () => {
+  const table = [{ id: 't1', tiles: [pick('red', 10), joker(0), pick('red', 12)] }];
+  const rack = [pick('red', 11), pick('blue', 5), pick('orange', 5)];
+  const r = solve({ rack, table, hasMelded: true });
+  assert.ok(r);
+  assert.equal(r.placedTileIds.length, 3, 'red11 + 鬼牌群組用掉 blue5/orange5');
+  const sets = verifyResult(r, { rack, table, hasMelded: true });
+  assert.equal(sets.length, 2, '多出一組鬼牌新牌組');
+});
+
+test('已首攤:鬼牌換出後無處可放則不換', () => {
+  // 4 張群組含鬼牌:換出後群組已滿、無其他牌組可接 → 不可換
+  const table = [{
+    id: 't1',
+    tiles: [pick('red', 9), pick('blue', 9), pick('orange', 9), joker(0)],
+  }];
+  const rack = [pick('black', 9), pick('blue', 2)];
+  assert.equal(solve({ rack, table, hasMelded: true }), null);
+});
+
 test('已首攤:無牌可出回傳 null', () => {
   const table = [{ id: 't1', tiles: [pick('red', 10), pick('red', 11), pick('red', 12)] }];
   const rack = [pick('blue', 2), pick('orange', 6), pick('black', 4)];
