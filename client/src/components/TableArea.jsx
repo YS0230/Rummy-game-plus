@@ -126,7 +126,7 @@ function useFitAndFlip(table) {
       if (Math.abs(dx) > 1 || Math.abs(dy) > 1) {
         cur.el.animate(
           [{ transform: `translate(${dx}px, ${dy}px)` }, { transform: 'none' }],
-          { duration: 220, easing: 'ease-out' }
+          { duration: 400, easing: 'ease-out' }
         );
       }
     }
