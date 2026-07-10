@@ -1,8 +1,12 @@
 // Rummikub 出牌求解器(前後端共用,純函式)。
-// 非最優解但保證正確:回傳結果必通過 Game.applyLayout 守恆檢查與 endTurn 驗證
+// hard 路徑跑兩條:啟發式(Pass 1–3,桌面變動最小)+ 精確 branch-and-bound
+// (searchTableMelds,全桌重新分割,可解出貪婪法漏掉的重組),取出牌數較多者。
+// 精確搜尋受 timeBudgetMs 限制,逾時退回啟發式結果(anytime);
+// 回傳結果必通過 Game.applyLayout 守恆檢查與 endTurn 驗證
 // (含首攤 >= 30 點規則);算不出可出的牌時回傳 null,由呼叫端抽牌。
 import {
   isValidSet,
+  isValidRun,
   setScore,
   validateTable,
   analyzeRun,
@@ -26,8 +30,12 @@ function buildPools(tiles) {
   return { kinds, jokers };
 }
 
-/** 枚舉所有可由手牌組成的候選牌組(以 kind 表示,去重) */
-function enumerateCandidates(kinds, jokerCount) {
+/**
+ * 枚舉所有可組成的候選牌組(以 kind 表示,去重)。
+ * maxRunLen 限制順子視窗長度:精確搜尋設 5(任何 >= 6 的順子必可拆成 3–5 段,
+ * 完備性不變且候選數可控),手牌搜尋維持 13(直接出長順)。
+ */
+function enumerateCandidates(kinds, jokerCount, { maxRunLen = 13 } = {}) {
   const out = [];
   const dedupe = new Set();
   const push = (needKeys, jokerNeed) => {
@@ -62,7 +70,8 @@ function enumerateCandidates(kinds, jokerCount) {
     const has = new Set();
     for (let v = 1; v <= 13; v++) if (kinds.has(`${color}-${v}`)) has.add(v);
     for (let s = 1; s <= 11; s++) {
-      for (let e = s + 2; e <= 13; e++) {
+      const eMax = Math.min(13, s + maxRunLen - 1);
+      for (let e = s + 2; e <= eMax; e++) {
         const needKeys = [];
         let missing = 0;
         for (let v = s; v <= e; v++) {
@@ -194,6 +203,180 @@ export function searchRackMelds(tiles, { minScore = 0, timeBudgetMs = 50 } = {})
   const melds = bestChosen.map((c) => {
     const tilesOut = c.needs.map((k) => pools.get(k).pop());
     for (let i = 0; i < c.jokerNeed; i++) tilesOut.push(jokerPool.pop());
+    return tilesOut;
+  });
+  return { melds, score: bestScore, tilesUsed: bestUsed };
+}
+
+/**
+ * 精確解:branch-and-bound 全桌重新分割(ILP 等價模型的窮舉版)。
+ * 桌面磚為 mandatory(最終桌面必須全數覆蓋,鬼牌守恆自動成立)、
+ * 手牌磚為 optional(可出可留),最大化出牌數、同數比總分。
+ * 順子候選限長 3–5(長順子必可拆段,不損完備性),配合記憶化與上界剪枝;
+ * 逾時回傳目前最佳的「完整可行解」(mandatory 全覆蓋),找不到回 null。
+ * 回傳 { melds: [[tile]](覆蓋整個桌面), score, tilesUsed } 或 null。
+ */
+export function searchTableMelds(rack, table, { timeBudgetMs = 200 } = {}) {
+  const mandPool = buildPools(table.flatMap((s) => s.tiles));
+  const optPool = buildPools(rack);
+  const kindSet = new Set([...mandPool.kinds.keys(), ...optPool.kinds.keys()]);
+  if (kindSet.size === 0) return null;
+  const kindList = [...kindSet];
+  const kindIndex = new Map(kindList.map((k, i) => [k, i]));
+  const mand = kindList.map((k) => mandPool.kinds.get(k)?.length ?? 0);
+  const opt = kindList.map((k) => optPool.kinds.get(k)?.length ?? 0);
+  let mandJokers = mandPool.jokers.length;
+  let optJokers = optPool.jokers.length;
+
+  const candidates = enumerateCandidates(kindSet, mandJokers + optJokers, { maxRunLen: 5 });
+  if (candidates.length === 0) return null;
+  const cands = candidates.map((c) => ({ ...c, needIdx: c.needs.map((k) => kindIndex.get(k)) }));
+  const candByKind = kindList.map(() => []);
+  for (const c of cands) for (const i of c.needIdx) candByKind[i].push(c);
+  const jokerCands = cands.filter((c) => c.jokerNeed > 0);
+
+  let mandLeft = mand.reduce((a, b) => a + b, 0) + mandJokers;
+  let optLeft = opt.reduce((a, b) => a + b, 0) + optJokers;
+  let used = 0; // 已出的手牌張數
+  let score = 0;
+  const chosen = [];
+  let bestUsed = 0;
+  let bestScore = 0;
+  let bestChosen = null;
+  const seen = new Map();
+  const deadline = Date.now() + timeBudgetMs;
+  let nodes = 0;
+  let stopped = false;
+
+  const feasible = (c) =>
+    c.jokerNeed <= mandJokers + optJokers && c.needIdx.every((i) => mand[i] + opt[i] > 0);
+
+  // 同 kind 先耗桌面磚再耗手牌磚:出牌數 = 手牌磚消耗數,先耗 mandatory 恆最優
+  const apply = (c) => {
+    const tookMand = [];
+    for (const i of c.needIdx) {
+      if (mand[i] > 0) {
+        mand[i]--;
+        mandLeft--;
+        tookMand.push(true);
+      } else {
+        opt[i]--;
+        optLeft--;
+        used++;
+        tookMand.push(false);
+      }
+    }
+    const jm = Math.min(c.jokerNeed, mandJokers);
+    const jo = c.jokerNeed - jm;
+    mandJokers -= jm;
+    mandLeft -= jm;
+    optJokers -= jo;
+    optLeft -= jo;
+    used += jo;
+    score += c.score;
+    chosen.push(c);
+    return { tookMand, jm, jo };
+  };
+  const undo = (c, m) => {
+    c.needIdx.forEach((i, idx) => {
+      if (m.tookMand[idx]) {
+        mand[i]++;
+        mandLeft++;
+      } else {
+        opt[i]++;
+        optLeft++;
+        used--;
+      }
+    });
+    mandJokers += m.jm;
+    mandLeft += m.jm;
+    optJokers += m.jo;
+    optLeft += m.jo;
+    used -= m.jo;
+    score -= c.score;
+    chosen.pop();
+  };
+
+  const dfs = () => {
+    if (stopped) return;
+    nodes++;
+    if ((nodes & 255) === 0 && Date.now() > deadline) {
+      stopped = true;
+      return;
+    }
+    // mandatory 全覆蓋才是可行解;出 0 張沒意義(等同不出)
+    if (mandLeft === 0 && used > 0 && (used > bestUsed || (used === bestUsed && score > bestScore))) {
+      bestUsed = used;
+      bestScore = score;
+      bestChosen = chosen.slice();
+    }
+    if (used + optLeft < bestUsed) return; // 上界剪枝:剩餘手牌全出也追不上
+    const key = `${mand.join(',')}|${opt.join(',')}|${mandJokers},${optJokers}|${used}`;
+    const prev = seen.get(key);
+    if (prev !== undefined && prev >= score) return;
+    seen.set(key, score);
+
+    // 先覆蓋 mandatory kind(桌面磚不可留下):無「跳過」分支
+    for (let i = 0; i < kindList.length; i++) {
+      if (mand[i] === 0) continue;
+      for (const c of candByKind[i]) {
+        if (!feasible(c)) continue;
+        const m = apply(c);
+        dfs();
+        undo(c, m);
+        if (stopped) return;
+      }
+      return; // 此 mandatory kind 的所有覆蓋方式已試盡(或無解)
+    }
+    // 再覆蓋 mandatory 鬼牌(桌面鬼牌必須放回桌面)
+    if (mandJokers > 0) {
+      for (const c of jokerCands) {
+        if (!feasible(c)) continue;
+        const m = apply(c);
+        dfs();
+        undo(c, m);
+        if (stopped) return;
+      }
+      return;
+    }
+    // optional 擴張:同 searchRackMelds 的「選一個 kind 分支 + 跳過(留手牌)」
+    let ki = -1;
+    let feas = null;
+    for (let i = 0; i < kindList.length; i++) {
+      if (opt[i] === 0) continue;
+      const f = candByKind[i].filter(feasible);
+      if (f.length > 0) {
+        ki = i;
+        feas = f;
+        break;
+      }
+    }
+    if (ki === -1) return;
+    for (const c of feas) {
+      const m = apply(c);
+      dfs();
+      undo(c, m);
+      if (stopped) return;
+    }
+    const savedOpt = opt[ki];
+    opt[ki] = 0;
+    optLeft -= savedOpt;
+    dfs();
+    opt[ki] = savedOpt;
+    optLeft += savedOpt;
+  };
+  dfs();
+
+  if (!bestChosen || bestUsed === 0) return null;
+
+  // kind 池同樣 mandatory 在前:shift 取磚即與 DFS 消耗順序一致,桌面磚必被用完
+  const kindPools = new Map(
+    kindList.map((k) => [k, [...(mandPool.kinds.get(k) ?? []), ...(optPool.kinds.get(k) ?? [])]])
+  );
+  const jokerPool = [...mandPool.jokers, ...optPool.jokers];
+  const melds = bestChosen.map((c) => {
+    const tilesOut = c.needs.map((k) => kindPools.get(k).shift());
+    for (let i = 0; i < c.jokerNeed; i++) tilesOut.push(jokerPool.shift());
     return tilesOut;
   });
   return { melds, score: bestScore, tilesUsed: bestUsed };
@@ -369,67 +552,17 @@ function selfCheck(sets, originalTable, rack) {
 const toLayout = (sets) => sets.map((s) => ({ id: s.id, tileIds: s.tiles.map((t) => t.id) }));
 const cloneSets = (sets) => sets.map((s) => ({ id: s.id, tiles: [...s.tiles] }));
 
-/**
- * 把 solve 的最終佈局拆成「逐張放置」的步驟,供 AI 出牌動畫用。
- * 第一步先呈現桌面重排(尚未放新牌),之後每步多放一張,最後一步即完整佈局;
- * 每一步都是可直接餵 game:layout 的合法佈局(守恆:桌面既有磚全在)。
- */
-export function layoutSteps(finalSets, placedTileIds) {
-  const placed = new Set(placedTileIds);
-  let cur = finalSets
-    .map((s) => ({ id: s.id, tileIds: s.tileIds.filter((id) => !placed.has(id)) }))
-    .filter((s) => s.tileIds.length > 0);
-  const steps = [cur];
-  for (const s of finalSets) {
-    for (const id of s.tileIds) {
-      if (!placed.has(id)) continue;
-      cur = cur.map((x) => ({ id: x.id, tileIds: [...x.tileIds] }));
-      const target = cur.find((x) => x.id === s.id);
-      if (target) target.tileIds.push(id);
-      else cur.push({ id: s.id, tileIds: [id] });
-      steps.push(cur);
-    }
-  }
-  return steps;
-}
+// 啟發式 fallback 的固定預算;options.timeBudgetMs 專屬精確搜尋
+const HEURISTIC_BUDGET_MS = 50;
 
-/**
- * 求一手可出的牌。
- * 輸入 { rack, table, hasMelded }:回合開始時的手牌、桌面([{id,tiles}])、是否已首攤。
- * options: { level: 'easy'|'hard', timeBudgetMs, maxRearrange }
- * 回傳 { sets: [{id,tileIds}](可直接餵 game:layout,含桌面全部既有磚), placedTileIds, score } 或 null。
- */
-export function solve({ rack, table = [], hasMelded = false }, options = {}) {
-  const { level = 'hard', timeBudgetMs = 50, maxRearrange = 8 } = options;
-  // 新牌組 id 必須避開桌面既有 id(前次 AI 出牌留下的 ai-* 會原樣帶回,
-  // 重複 id 會讓前端「以 id 找牌組」的拖曳邏輯錯亂)
-  const taken = new Set(table.map((s) => s.id));
-  let nextId = 0;
-  const idGen = () => {
-    let id;
-    do id = `ai-${Math.random().toString(36).slice(2, 6)}-${nextId++}`;
-    while (taken.has(id));
-    taken.add(id);
-    return id;
-  };
-
-  // 首攤:只用手牌湊 >= 30 點,桌面原樣帶回(endTurn 首攤簽名檢查要求不動桌面)
-  if (!hasMelded) {
-    const r = searchRackMelds(rack, { minScore: INITIAL_MELD_MIN, timeBudgetMs });
-    if (!r) return null;
-    const sets = [...cloneSets(table), ...r.melds.map((tiles) => ({ id: idGen(), tiles }))];
-    const placed = selfCheck(sets, table, rack);
-    if (!placed) return null;
-    return { sets: toLayout(sets), placedTileIds: placed, score: r.score };
-  }
-
-  // 已首攤
+/** 已首攤的啟發式路徑(Pass 1–3):快、保底、桌面變動最小 */
+function solveHeuristic(rack, table, idGen, { level, maxRearrange }) {
   let work = cloneSets(table);
   let rackLeft = [...rack];
   let score = 0;
 
   // Pass 1:手牌內現成組合
-  const r1 = searchRackMelds(rackLeft, { minScore: 0, timeBudgetMs });
+  const r1 = searchRackMelds(rackLeft, { minScore: 0, timeBudgetMs: HEURISTIC_BUDGET_MS });
   if (r1) {
     for (const tiles of r1.melds) work.push({ id: idGen(), tiles });
     rackLeft = removeById(rackLeft, r1.melds.flat().map((t) => t.id));
@@ -438,7 +571,7 @@ export function solve({ rack, table = [], hasMelded = false }, options = {}) {
   if (level === 'easy') {
     const placed = selfCheck(work, table, rack);
     if (!placed) return null;
-    return { sets: toLayout(work), placedTileIds: placed, score };
+    return { sets: work, placed, score };
   }
 
   // Pass 2 前先做鬼牌替換:替換磚往往同時是可延伸磚(如 10,J,12 手上有 11),
@@ -470,5 +603,115 @@ export function solve({ rack, table = [], hasMelded = false }, options = {}) {
     placed = selfCheck(work, table, rack);
   }
   if (!placed) return null;
-  return { sets: toLayout(work), placedTileIds: placed, score };
+  return { sets: work, placed, score };
+}
+
+/** 把精確解拆成 3–5 段的同色順子併回長順(合併後仍合法才算),桌面較好讀 */
+function mergeRuns(sets) {
+  let changed = true;
+  while (changed) {
+    changed = false;
+    outer: for (let i = 0; i < sets.length; i++) {
+      for (let j = i + 1; j < sets.length; j++) {
+        const merged = [...sets[i].tiles, ...sets[j].tiles];
+        if (!isValidRun(merged)) continue;
+        sets[i].tiles = merged;
+        sets.splice(j, 1);
+        changed = true;
+        break outer;
+      }
+    }
+  }
+}
+
+/** 精確解是全桌重分割:與桌面原牌組完全相同(磚 id 簽名)者沿用原 id,其餘給新 id */
+function assignIds(sets, table, idGen) {
+  const sig = (tiles) => tiles.map((t) => t.id).sort().join(',');
+  const orig = new Map(table.map((s) => [sig(s.tiles), s.id]));
+  for (const s of sets) {
+    const k = sig(s.tiles);
+    if (orig.has(k)) {
+      s.id = orig.get(k);
+      orig.delete(k);
+    } else {
+      s.id = idGen();
+    }
+  }
+}
+
+/** 已首攤的精確路徑:B&B 全桌重組 → 併順子 → 配 id → selfCheck 結構保證 */
+function solveExact(rack, table, idGen, timeBudgetMs) {
+  const r = searchTableMelds(rack, table, { timeBudgetMs });
+  if (!r) return null;
+  const sets = r.melds.map((tiles) => ({ id: null, tiles }));
+  mergeRuns(sets);
+  assignIds(sets, table, idGen);
+  const placed = selfCheck(sets, table, rack);
+  if (!placed) return null;
+  return { sets, placed, score: r.score };
+}
+
+/**
+ * 把 solve 的最終佈局拆成「逐張放置」的步驟,供 AI 出牌動畫用。
+ * 第一步先呈現桌面重排(尚未放新牌),之後每步多放一張,最後一步即完整佈局;
+ * 每一步都是可直接餵 game:layout 的合法佈局(守恆:桌面既有磚全在)。
+ */
+export function layoutSteps(finalSets, placedTileIds) {
+  const placed = new Set(placedTileIds);
+  let cur = finalSets
+    .map((s) => ({ id: s.id, tileIds: s.tileIds.filter((id) => !placed.has(id)) }))
+    .filter((s) => s.tileIds.length > 0);
+  const steps = [cur];
+  for (const s of finalSets) {
+    for (const id of s.tileIds) {
+      if (!placed.has(id)) continue;
+      cur = cur.map((x) => ({ id: x.id, tileIds: [...x.tileIds] }));
+      const target = cur.find((x) => x.id === s.id);
+      if (target) target.tileIds.push(id);
+      else cur.push({ id: s.id, tileIds: [id] });
+      steps.push(cur);
+    }
+  }
+  return steps;
+}
+
+/**
+ * 求一手可出的牌。
+ * 輸入 { rack, table, hasMelded }:回合開始時的手牌、桌面([{id,tiles}])、是否已首攤。
+ * options: { level: 'easy'|'hard', timeBudgetMs, maxRearrange }
+ * 回傳 { sets: [{id,tileIds}](可直接餵 game:layout,含桌面全部既有磚), placedTileIds, score } 或 null。
+ */
+export function solve({ rack, table = [], hasMelded = false }, options = {}) {
+  const { level = 'hard', timeBudgetMs = 200, maxRearrange = 8 } = options;
+  // 新牌組 id 必須避開桌面既有 id(前次 AI 出牌留下的 ai-* 會原樣帶回,
+  // 重複 id 會讓前端「以 id 找牌組」的拖曳邏輯錯亂)
+  const taken = new Set(table.map((s) => s.id));
+  let nextId = 0;
+  const idGen = () => {
+    let id;
+    do id = `ai-${Math.random().toString(36).slice(2, 6)}-${nextId++}`;
+    while (taken.has(id));
+    taken.add(id);
+    return id;
+  };
+
+  // 首攤:只用手牌湊 >= 30 點,桌面原樣帶回(endTurn 首攤簽名檢查要求不動桌面)
+  if (!hasMelded) {
+    const r = searchRackMelds(rack, { minScore: INITIAL_MELD_MIN, timeBudgetMs });
+    if (!r) return null;
+    const sets = [...cloneSets(table), ...r.melds.map((tiles) => ({ id: idGen(), tiles }))];
+    const placed = selfCheck(sets, table, rack);
+    if (!placed) return null;
+    return { sets: toLayout(sets), placedTileIds: placed, score: r.score };
+  }
+
+  // 已首攤:啟發式照跑(保底);hard 再跑精確 B&B,取出牌數較多者。
+  // 同出牌數時偏向啟發式:它保留原桌面結構,重排幅度(視覺變動)最小。
+  const heur = solveHeuristic(rack, table, idGen, { level, maxRearrange });
+  const pack = (r) => ({ sets: toLayout(r.sets), placedTileIds: r.placed, score: r.score });
+  if (level === 'easy') return heur ? pack(heur) : null;
+  const exact = solveExact(rack, table, idGen, timeBudgetMs);
+  if (!exact) return heur ? pack(heur) : null;
+  if (!heur || exact.placed.length > heur.placed.length) return pack(exact);
+  return pack(heur);
 }

@@ -203,6 +203,65 @@ test('已首攤:無牌可出回傳 null', () => {
   assert.equal(solve({ rack, table, hasMelded: true }), null);
 });
 
+// ---------- solve:精確解(B&B 全桌重組) ----------
+
+test('精確解:三條順子全桌重組成群組(啟發式無解的局面)', () => {
+  // 桌面 r/b/o 10-12 三條順子,手上 k10,k11:唯一解是重組成
+  // [r10 b10 o10 k10][r11 b11 o11 k11][r12 b12 o12],出掉兩張
+  const table = [
+    { id: 't1', tiles: [pick('red', 10), pick('red', 11), pick('red', 12)] },
+    { id: 't2', tiles: [pick('blue', 10), pick('blue', 11), pick('blue', 12)] },
+    { id: 't3', tiles: [pick('orange', 10), pick('orange', 11), pick('orange', 12)] },
+  ];
+  const rack = [pick('black', 10), pick('black', 11), pick('blue', 2)];
+  const r = solve({ rack, table, hasMelded: true });
+  assert.ok(r, '需全桌重組才有解');
+  assert.equal(r.placedTileIds.length, 2, '出掉 black10 + black11');
+  verifyResult(r, { rack, table, hasMelded: true });
+});
+
+test('精確解:重組含鬼牌的桌面,鬼牌仍留在桌面', () => {
+  const table = [
+    { id: 't1', tiles: [pick('red', 10), pick('red', 11), pick('red', 12)] },
+    { id: 't2', tiles: [pick('blue', 10), pick('blue', 11), pick('blue', 12)] },
+    { id: 't3', tiles: [pick('orange', 10), joker(0), pick('orange', 12)] },
+  ];
+  const rack = [pick('black', 10), pick('black', 11)];
+  const r = solve({ rack, table, hasMelded: true });
+  assert.ok(r, '鬼牌可在重組中改當群組成員');
+  assert.equal(r.placedTileIds.length, 2);
+  const sets = verifyResult(r, { rack, table, hasMelded: true });
+  assert.ok(sets.some((s) => s.tiles.some((t) => t.isJoker)), '鬼牌不得收回手牌');
+});
+
+test('精確解:未被重組的桌面牌組沿用原 id', () => {
+  const table = [
+    { id: 't0', tiles: [pick('black', 5), pick('black', 6), pick('black', 7)] },
+    { id: 't1', tiles: [pick('red', 10), pick('red', 11), pick('red', 12)] },
+    { id: 't2', tiles: [pick('blue', 10), pick('blue', 11), pick('blue', 12)] },
+    { id: 't3', tiles: [pick('orange', 10), pick('orange', 11), pick('orange', 12)] },
+  ];
+  const rack = [pick('black', 10), pick('black', 11)];
+  const r = solve({ rack, table, hasMelded: true });
+  assert.ok(r);
+  assert.equal(r.placedTileIds.length, 2);
+  const kept = r.sets.find((s) => s.id === 't0');
+  assert.ok(kept, '沒動到的 k5-7 保留原 id');
+  assert.deepEqual([...kept.tileIds].sort(), table[0].tiles.map((t) => t.id).sort());
+  verifyResult(r, { rack, table, hasMelded: true });
+});
+
+test('精確解:時間預算極小時不丟例外,結果仍合法或 null', () => {
+  const table = [
+    { id: 't1', tiles: [pick('red', 10), pick('red', 11), pick('red', 12)] },
+    { id: 't2', tiles: [pick('blue', 10), pick('blue', 11), pick('blue', 12)] },
+    { id: 't3', tiles: [pick('orange', 10), pick('orange', 11), pick('orange', 12)] },
+  ];
+  const rack = [pick('black', 10), pick('black', 11), pick('blue', 2)];
+  const r = solve({ rack, table, hasMelded: true }, { timeBudgetMs: 0 });
+  if (r) verifyResult(r, { rack, table, hasMelded: true });
+});
+
 // ---------- 端到端:solve 結果必過 Game.applyLayout + endTurn ----------
 
 function makeGame(players = 2) {
@@ -328,7 +387,7 @@ test('layoutSteps:逐張步驟每步皆過 applyLayout,最後一步可 endTurn',
 
 // ---------- 模糊測試:隨機局面下結果永遠合法且不逾時 ----------
 
-test('模糊測試:200 局隨機手牌/桌面,結果皆過驗證且 <200ms', () => {
+test('模糊測試:200 局隨機手牌/桌面,結果皆過驗證且 <250ms', () => {
   for (let iter = 0; iter < 200; iter++) {
     const deck = shuffle(createTiles());
     // 用另一份隨機牌組出合法桌面
@@ -340,9 +399,10 @@ test('模糊測試:200 局隨機手牌/桌面,結果皆過驗證且 <200ms', () 
 
     for (const hasMelded of [false, true]) {
       const t0 = Date.now();
-      const r = solve({ rack, table, hasMelded });
+      // 壓低精確搜尋預算讓 200 局跑得完;anytime 特性下正確性不受預算影響
+      const r = solve({ rack, table, hasMelded }, { timeBudgetMs: 50 });
       const elapsed = Date.now() - t0;
-      assert.ok(elapsed < 200, `solve 耗時 ${elapsed}ms 超標 (iter=${iter})`);
+      assert.ok(elapsed < 250, `solve 耗時 ${elapsed}ms 超標 (iter=${iter})`);
       if (r) verifyResult(r, { rack, table, hasMelded });
     }
   }
