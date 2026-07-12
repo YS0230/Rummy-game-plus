@@ -1,7 +1,31 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { Game } from '../src/game/Game.js';
-import { BotDriver } from '../src/game/BotDriver.js';
+import { BotDriver, BOT_SPEEDS, DEFAULT_BOT_SPEED } from '../src/game/BotDriver.js';
+
+test('出牌速度:檔位決定思考延遲與步距,短回合仍受總時長上限保護', () => {
+  const fakeGame = { turnSeconds: 60 };
+  const mk = (speed) =>
+    new BotDriver(fakeGame, () => 'hard', { botSpeedOf: () => speed });
+
+  assert.equal(mk('slow').speedOf('b').delayMs, BOT_SPEEDS.slow.delayMs);
+  assert.equal(mk(null).speedOf('b'), BOT_SPEEDS[DEFAULT_BOT_SPEED], '未指定 → 預設慢');
+  assert.equal(mk('bogus').speedOf('b'), BOT_SPEEDS[DEFAULT_BOT_SPEED]);
+
+  // 60 秒回合、5 張:各檔位吃到各自的 maxStepMs
+  assert.equal(mk('fast').stepMsFor('b', 5), BOT_SPEEDS.fast.maxStepMs);
+  assert.equal(mk('normal').stepMsFor('b', 5), BOT_SPEEDS.normal.maxStepMs);
+  assert.equal(mk('slow').stepMsFor('b', 5), BOT_SPEEDS.slow.maxStepMs);
+
+  // 15 秒短回合 + 慢速 + 20 張:思考 + 放置不得超過回合的 70%
+  const shortGame = { turnSeconds: 15 };
+  const slow = new BotDriver(shortGame, () => 'hard', { botSpeedOf: () => 'slow' });
+  const step = slow.stepMsFor('b', 20);
+  assert.ok(
+    BOT_SPEEDS.slow.delayMs + step * 20 <= 15000 * 0.7,
+    `總時長超標:${BOT_SPEEDS.slow.delayMs + step * 20}`
+  );
+});
 
 /** 建一局遊戲並掛上 BotDriver(delayMs/stepMs:0 → 每步以 setTimeout(0) 觸發) */
 function makeBotGame(botLevels, players = ['p1', 'bot1']) {

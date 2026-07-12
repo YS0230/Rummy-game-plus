@@ -32,13 +32,15 @@ A.on('room:update', (r) => (roomState = r));
 const notHostErr = await req(A, 'room:removeBot', { playerId: 'nope' });
 check(!notHostErr.ok, '移除不存在的 bot 回錯誤');
 
-check((await req(A, 'room:addBot')).ok, '加入電腦玩家');
-check((await req(A, 'room:addBot')).ok, '加入電腦玩家');
+check((await req(A, 'room:addBot')).ok, '加入電腦玩家(未指定速度)');
+check((await req(A, 'room:addBot', { speed: 'fast' })).ok, '加入電腦玩家(快速)');
 await sleep(200);
 const bots = roomState.players.filter((p) => p.isBot);
 check(bots.length === 2, 'room:update 帶出 2 個 bot');
 check(bots.every((p) => p.ready && p.connected), 'bot 恆為已準備且在線');
 check(bots.every((p) => p.botLevel === 'hard'), 'botLevel 恆為 hard');
+check(bots[0].botSpeed === 'slow', '未指定速度 → 預設慢');
+check(bots[1].botSpeed === 'fast', '指定 fast → botSpeed=fast');
 const full = await req(A, 'room:addBot');
 check(!full.ok && /已滿/.test(full.error), '滿員時無法再加 bot');
 

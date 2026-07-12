@@ -4,6 +4,8 @@ import { req } from '../socket.js';
 import { useSecretTaps } from '../useSecretTaps.js';
 import Chat from '../components/Chat.jsx';
 
+const SPEED_LABEL = { fast: '快', normal: '中', slow: '慢' };
+
 export default function Room() {
   const { room, playerId, showToast } = useStore();
 
@@ -23,8 +25,10 @@ export default function Room() {
     if (!res.ok) showToast(res.error, 'warn');
   };
 
+  const [botSpeed, setBotSpeed] = React.useState('slow');
+
   const addBot = async () => {
-    const res = await req('room:addBot');
+    const res = await req('room:addBot', { speed: botSpeed });
     if (!res.ok) showToast(res.error, 'warn');
   };
 
@@ -71,6 +75,9 @@ export default function Room() {
                   {p.name}
                   {p.playerId === room.hostId && ' 👑'}
                   {p.playerId === playerId && '(你)'}
+                  {p.isBot && p.botSpeed && (
+                    <span className="muted"> · 出牌{SPEED_LABEL[p.botSpeed] ?? p.botSpeed}</span>
+                  )}
                 </span>
                 <span className={`badge ${p.ready ? 'ready' : ''}`}>
                   {!p.connected ? '斷線' : p.ready ? '已準備' : '未準備'}
@@ -89,9 +96,21 @@ export default function Room() {
             {Array.from({ length: room.maxPlayers - room.players.length }).map((_, i) => (
               <li key={`empty-${i}`} className="empty-seat">
                 {isHost && i === 0 ? (
-                  <button className="small" onClick={() => addBot()}>
-                    ➕ 電腦
-                  </button>
+                  <span className="add-bot">
+                    <button className="small" onClick={() => addBot()}>
+                      ➕ 電腦
+                    </button>
+                    <select
+                      className="small"
+                      value={botSpeed}
+                      title="電腦的出牌速度"
+                      onChange={(e) => setBotSpeed(e.target.value)}
+                    >
+                      <option value="slow">慢</option>
+                      <option value="normal">中</option>
+                      <option value="fast">快</option>
+                    </select>
+                  </span>
                 ) : (
                   '等待玩家加入…'
                 )}

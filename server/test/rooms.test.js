@@ -27,6 +27,7 @@ test('addBot:預設欄位正確,滿員/遊戲中不可加入', () => {
   assert.ok(bot.playerId.startsWith('bot-'));
   assert.ok(bot.isBot && bot.ready && bot.connected);
   assert.equal(bot.botLevel, 'hard');
+  assert.equal(bot.botSpeed, 'slow', '出牌速度預設慢');
   assert.equal(bot.socketId, null);
   assert.ok(!rm.playerRoom.has(bot.playerId), 'bot 不進 playerRoom 對照表');
 
@@ -34,6 +35,15 @@ test('addBot:預設欄位正確,滿員/遊戲中不可加入', () => {
   room.status = 'playing';
   room.players.pop();
   assert.throws(() => rm.addBot(room), /遊戲進行中/);
+});
+
+test('addBot:出牌速度可選,非法值退回預設', () => {
+  const rm = new RoomManager();
+  const room = rm.createRoom({ playerId: 'p1', name: '房主', socketId: 's1' }, { maxPlayers: 4 });
+  assert.equal(rm.addBot(room, 'fast').botSpeed, 'fast');
+  assert.equal(rm.addBot(room, 'normal').botSpeed, 'normal');
+  assert.equal(rm.addBot(room, 'bogus').botSpeed, 'slow');
+  assert.equal(rm.publicRoom(room).players[1].botSpeed, 'fast');
 });
 
 test('removeBot:只能移除電腦玩家,且限等待中', () => {

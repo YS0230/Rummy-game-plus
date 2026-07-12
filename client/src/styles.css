@@ -198,6 +198,15 @@ select {
   justify-content: center;
   font-size: 13px;
 }
+.add-bot {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+.add-bot select.small {
+  padding: 4px 6px;
+  font-size: 13px;
+}
 .badge {
   font-size: 12px;
   padding: 3px 10px;

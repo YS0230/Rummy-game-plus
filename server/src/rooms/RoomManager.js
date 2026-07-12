@@ -1,4 +1,5 @@
 import { customAlphabet } from 'nanoid';
+import { DEFAULT_BOT_SPEED, isBotSpeed } from '../game/BotDriver.js';
 
 const roomId = customAlphabet('abcdefghijklmnopqrstuvwxyz0123456789', 10);
 const roomCode = customAlphabet('ABCDEFGHJKLMNPQRSTUVWXYZ23456789', 6);
@@ -54,8 +55,8 @@ export class RoomManager {
     return player;
   }
 
-  /** 房主加入電腦玩家:恆為已準備、視為在線(無 socket) */
-  addBot(room) {
+  /** 房主加入電腦玩家:恆為已準備、視為在線(無 socket)。speed 決定出牌快慢,預設慢 */
+  addBot(room, speed = DEFAULT_BOT_SPEED) {
     if (room.status !== 'waiting') throw new Error('遊戲進行中,無法加入');
     if (room.players.length >= room.maxPlayers) throw new Error('房間已滿');
     const base = BOT_NAMES[Math.floor(Math.random() * BOT_NAMES.length)];
@@ -67,6 +68,7 @@ export class RoomManager {
       ready: true,
       isBot: true,
       botLevel: 'hard',
+      botSpeed: isBotSpeed(speed) ? speed : DEFAULT_BOT_SPEED,
     };
     // 不寫入 playerRoom:那是給人類 socket 重連 roomOf 查詢用的
     room.players.push(bot);
@@ -192,6 +194,7 @@ export class RoomManager {
         ready: p.ready,
         isBot: !!p.isBot,
         botLevel: p.botLevel ?? null,
+        botSpeed: p.botSpeed ?? null,
       })),
     };
   }

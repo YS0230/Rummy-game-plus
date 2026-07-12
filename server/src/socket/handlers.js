@@ -1,6 +1,8 @@
 import { Game } from '../game/Game.js';
 import { BotDriver } from '../game/BotDriver.js';
 
+const SPEED_LABEL = { fast: '快', normal: '中', slow: '慢' };
+
 export function registerHandlers(io, rooms) {
   const broadcastLobby = () => io.emit('lobby:list', rooms.lobbyList());
 
@@ -170,7 +172,10 @@ export function registerHandlers(io, rooms) {
         const bots = room.players.filter((p) => p.isBot);
         if (bots.length > 0) {
           const levels = new Map(bots.map((p) => [p.playerId, p.botLevel]));
-          room.botDriver = new BotDriver(room.game, (pid) => levels.get(pid) ?? null);
+          const speeds = new Map(bots.map((p) => [p.playerId, p.botSpeed]));
+          room.botDriver = new BotDriver(room.game, (pid) => levels.get(pid) ?? null, {
+            botSpeedOf: (pid) => speeds.get(pid) ?? null,
+          });
         }
         systemChat(room, '遊戲開始!');
         broadcastRoom(room);
@@ -183,8 +188,8 @@ export function registerHandlers(io, rooms) {
       'room:addBot',
       withRoom((room, payload, ack) => {
         if (playerId !== room.hostId) throw new Error('只有房主可以加入電腦玩家');
-        const bot = rooms.addBot(room);
-        systemChat(room, `${bot.name} 加入房間`);
+        const bot = rooms.addBot(room, String(payload?.speed || ''));
+        systemChat(room, `${bot.name} 加入房間(出牌${SPEED_LABEL[bot.botSpeed]})`);
         broadcastRoom(room);
         ack?.({ ok: true });
       })
