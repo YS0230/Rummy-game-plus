@@ -8,7 +8,7 @@ import GameBoard from './pages/GameBoard.jsx';
 let bound = false;
 
 export default function App() {
-  const { room, results, toasts, name, connected } = useStore();
+  const { room, results, toasts, name, connected, chatPops, setChatOpen } = useStore();
 
   useEffect(() => {
     if (!bound) {
@@ -32,6 +32,14 @@ export default function App() {
           <div key={t.id} className={`toast toast-${t.kind}`}>
             {t.text}
           </div>
+        ))}
+      </div>
+      <div className="chat-pop-stack">
+        {chatPops.map((p) => (
+          <button key={p.id} className="chat-pop" onClick={() => setChatOpen(true)}>
+            <span className="chat-pop-name">{p.name}</span>
+            <span className="chat-pop-text">{p.text}</span>
+          </button>
         ))}
       </div>
       {name && !connected && socket.active !== false && (

@@ -67,6 +67,11 @@ export const sounds = {
   }),
   /** 輪到你 */
   yourTurn: safe(() => tone(880, { dur: 0.5, vol: 0.08 })),
+  /** 聊天訊息:輕短「叮咚」 */
+  chat: safe(() => {
+    tone(988, { dur: 0.07, vol: 0.05 });
+    tone(1319, { at: 0.06, dur: 0.12, vol: 0.045 });
+  }),
   /** 勝利:上行琶音 */
   win: safe(() => {
     [523, 659, 784, 1047].forEach((f, i) =>

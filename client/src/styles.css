@@ -795,6 +795,66 @@ select {
 .toast-warn {
   background: #b3543f;
 }
+/* 聊天訊息氣泡(聊天室收合時) */
+.chat-pop-stack {
+  position: fixed;
+  top: 60px;
+  right: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 8px;
+  z-index: 58;
+  pointer-events: none;
+}
+.chat-pop {
+  pointer-events: auto;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  max-width: min(260px, 70vw);
+  padding: 8px 12px;
+  border: none;
+  border-radius: 12px;
+  background: rgba(32, 36, 44, 0.94);
+  color: #fff;
+  text-align: left;
+  cursor: pointer;
+  box-shadow: 0 4px 14px rgba(0, 0, 0, 0.4);
+  animation: chat-pop-in 3.5s ease forwards;
+}
+.chat-pop-name {
+  font-size: 12px;
+  font-weight: 700;
+  color: #ffd75e;
+}
+.chat-pop-text {
+  font-size: 14px;
+  line-height: 1.35;
+  overflow-wrap: anywhere;
+  display: -webkit-box;
+  -webkit-line-clamp: 3;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+@keyframes chat-pop-in {
+  0% {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+  8% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  85% {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  100% {
+    opacity: 0;
+    transform: translateX(24px);
+  }
+}
 /* ---------- 抽牌/回合/未讀/規則 ---------- */
 .tile-drawn {
   animation: drawn-glow 1s ease-in-out infinite alternate;
@@ -1031,6 +1091,10 @@ select {
   }
   .chat-toggle {
     bottom: calc(16px + env(safe-area-inset-bottom));
+  }
+  .chat-pop-stack {
+    top: 72px;
+    right: 8px;
   }
 
   /* 等待房:主區與聊天室改直向堆疊 */

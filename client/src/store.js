@@ -44,6 +44,7 @@ export const useStore = create((set, get) => ({
   staging: [], // 牌組暫放區 [{ id, tileIds }],純本地狀態
   chatOpen: window.matchMedia('(min-width: 901px)').matches, // 聊天室展開
   chatSeen: 0, // 已讀訊息數(未讀徽章用)
+  chatPops: [], // 聊天室收合時浮出的訊息氣泡
   aiUnlocked: localStorage.getItem('rummy-ai-unlocked') === '1', // 隱藏功能:AI 代出牌(連點房名 5 次切換)
   aiAuto: false, // AI 自動模式:輪到自己就自動代打
 
@@ -58,7 +59,20 @@ export const useStore = create((set, get) => ({
   setName: (name) => set({ name }),
 
   setChatOpen: (open) =>
-    set(open ? { chatOpen: true, chatSeen: get().chat.length } : { chatOpen: false }),
+    set(
+      open
+        ? { chatOpen: true, chatSeen: get().chat.length, chatPops: [] }
+        : { chatOpen: false }
+    ),
+
+  /** 聊天室收合時,浮出訊息氣泡(最多同時 3 則),3.5 秒後自動消失 */
+  pushChatPop: (msg) => {
+    const id = `${Date.now()}-${Math.random()}`;
+    set({ chatPops: [...get().chatPops, { id, name: msg.name, text: msg.text }].slice(-3) });
+    setTimeout(() => {
+      set({ chatPops: get().chatPops.filter((p) => p.id !== id) });
+    }, 3500);
+  },
 
   /** 切換 AI 代出牌顯示;隱藏時一併關閉自動模式。回傳新狀態 */
   toggleAiUnlocked: () => {
@@ -213,5 +227,12 @@ export function bindSocket() {
     else sounds.lose();
   });
 
-  socket.on('chat:message', (msg) => s({ chat: [...g().chat, msg].slice(-100) }));
+  socket.on('chat:message', (msg) => {
+    s({ chat: [...g().chat, msg].slice(-100) });
+    // 聊天室收合時,別人的發言浮出氣泡+提示音(系統訊息與自己的訊息不提示)
+    if (!msg.system && msg.playerId !== g().playerId && !g().chatOpen) {
+      g().pushChatPop(msg);
+      sounds.chat();
+    }
+  });
 }
